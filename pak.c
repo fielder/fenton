@@ -26,7 +26,7 @@ struct pak_s
 static struct pak_s paks = { NULL };
 
 
-unsigned int
+static unsigned int
 getUInt (const void *ptr)
 {
 	const unsigned char *bytes = ptr;
@@ -128,6 +128,37 @@ void *
 Pak_Read (const char *name, unsigned int *size)
 {
 	struct pak_s *pak;
+
+	/* try a file first */
+	{
+		int fd;
+		if ((fd = open(name, O_RDONLY)) != -1)
+		{
+			int sz = lseek (fd, 0, SEEK_END);
+			if (sz != -1)
+			{
+				void *ret;
+				if ((ret = malloc(sz + 1)) != NULL)
+				{
+					lseek (fd, 0, SEEK_SET);
+					if (read(fd, ret, sz) != sz)
+					{
+						free (ret);
+						ret = NULL;
+					}
+					else
+					{
+						((char *)ret)[sz] = '\0';
+						if (size != NULL)
+							*size = sz;
+						return ret;
+					}
+				}
+			}
+			close (fd);
+			fd = -1;
+		}
+	}
 
 	for (pak = paks.next; pak != NULL; pak = pak->next)
 	{

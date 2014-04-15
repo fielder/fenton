@@ -1,3 +1,6 @@
+#include <stdio.h>
+
+#include "rdata.h"
 #include "fenton.h"
 #include "render.h"
 

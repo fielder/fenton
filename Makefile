@@ -14,7 +14,8 @@ OBJS =	$(OBJDIR)/bswap.o \
 	$(OBJDIR)/pak.o \
 	$(OBJDIR)/appio.o \
 	$(OBJDIR)/fenton.o \
-	$(OBJDIR)/render.o
+	$(OBJDIR)/render.o \
+	$(OBJDIR)/rdata.o
 
 all: $(TARGET)
 
@@ -38,4 +39,6 @@ $(OBJDIR)/appio.o: appio.c
 $(OBJDIR)/fenton.o: fenton.c
 	$(CC) -c $(CFLAGS) $? -o $@
 $(OBJDIR)/render.o: render.c
+	$(CC) -c $(CFLAGS) $? -o $@
+$(OBJDIR)/rdata.o: rdata.c
 	$(CC) -c $(CFLAGS) $? -o $@

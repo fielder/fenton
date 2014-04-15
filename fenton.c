@@ -13,6 +13,8 @@ RunInput (void);
 float frametime;
 unsigned int elapsedtime_ms = 0;
 
+static const char *pakpath = "doom.pak";
+
 static struct
 {
 	int framecount;
@@ -60,10 +62,10 @@ F_Error (const char *fmt, ...)
 void
 F_Init (void)
 {
-	if (SwapInit())
-		IO_Print ("big endian\n");
-	else
-		IO_Print ("little endian\n");
+	SwapInit ();
+
+	if (!Pak_AddFile(pakpath))
+		F_Error ("unable to load %s", pakpath);
 
 	IO_Init ();
 

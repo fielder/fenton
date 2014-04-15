@@ -76,7 +76,11 @@ def refreshGUI():
         label.setSizePolicy(sp)
         label.setScaledContents(True)
         label.setPixmap(pixmap)
-        label.setToolTip("%dx%d" % (level.width, level.height))
+        if level == texture.levels[0]:
+            ttip = "%dx%d (original %dx%d)" % (level.width, level.height, texture.original_width, texture.original_height)
+        else:
+            ttip = "%dx%d" % (level.width, level.height)
+        label.setToolTip(ttip)
 
 #       hbox = QtGui.QHBoxLayout()
 #       hbox.addWidget(label)
