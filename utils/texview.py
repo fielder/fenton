@@ -89,11 +89,67 @@ def refreshGUI():
         vbox.addWidget(label)
 
 
+def _loadSimpleTexture(fp):
+    fp.seek(0, 2)
+    fsize = fp.tell()
+    fp.seek(0)
+
+    if fsize <= 8:
+        raise ValueError("not an image")
+
+    width, = struct.unpack("<I", fp.read(4))
+    height, = struct.unpack("<I", fp.read(4))
+    if width <= 0 or width > 1024 or height <= 0 or height > 1024:
+        raise ValueError("invalid size %dx%d" % (width, height))
+
+    if fsize != 8 + (width * height * 3):
+        if fsize != 8 + (width * height * 3) + (width * height):
+            raise ValueError("invalid file size %d" % fsize)
+
+    pixeldat = fp.read(width * height * 3)
+
+    if fp.tell() == fsize:
+        pixels = [ QtGui.qRgb(ord(pixeldat[i + 0]), \
+                              ord(pixeldat[i + 1]), \
+                              ord(pixeldat[i + 2])) for i in xrange(0, len(pixeldat), 3) ]
+        masked = False
+    else:
+        maskdat = fp.read(width * height)
+        pixels = []
+        for idx in xrange(width * height):
+            if maskdat[idx] != "\x00":
+                rgba = QtGui.qRgba(ord(pixeldat[idx * 3 + 0]), \
+                                   ord(pixeldat[idx * 3 + 1]), \
+                                   ord(pixeldat[idx * 3 + 2]), \
+                                   255)
+            else:
+                rgba = QtGui.qRgba(0, 0, 0, 0)
+            pixels.append(rgba)
+        masked = True
+
+    levels = []
+
+    lev = Level()
+    lev.width = width
+    lev.height = height
+    lev.pixels = pixels
+    levels.append(lev)
+
+    ret = Texture()
+    ret.name = "none"
+    ret.original_width = width
+    ret.original_height = height
+    ret.masked = bool(masked)
+    ret.levels = levels
+
+    return ret
+
+
 def _loadTexture(fp):
     fp.seek(0)
 
     if fp.read(8) != "TEXMIPS\x00":
-        raise ValueError("not an image")
+        return _loadSimpleTexture(fp)
 
     version, = struct.unpack("<H", fp.read(2))
     if version != TEXTURE_VERSION:
