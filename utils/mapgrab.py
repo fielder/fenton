@@ -5,6 +5,9 @@ import os
 import struct
 
 import wad
+import texutil
+
+PALNUM = 0
 
 _maplumps = ["THINGS", "LINEDEFS", "SIDEDEFS", \
              "VERTEXES", "SEGS", "SSECTORS", \
@@ -74,11 +77,97 @@ def _dumpSECTORS(destdir, raw):
             fp.write("%d %d %d %s %s %d %d %d\n" % (idx, f_height, c_height, wad.pythonifyString(f_tex), wad.pythonifyString(c_tex), light, special, tag))
 
 
+def _mkdir(path):
+    if not os.path.isdir(path):
+        if os.path.isfile(path):
+            raise ValueError("map file \"%s\" already exists" % path)
+        os.mkdir(path)
+
+
+def _dumpTextures(destdir, sidedefs_raw):
+    texturesdir = os.path.join(destdir, "textures")
+    _mkdir(texturesdir)
+
+    all_used = set()
+
+    for idx, sraw in enumerate(wad.chopBytes(sidedefs_raw, 30)):
+        xoff, yoff, toptex, bottomtex, middletex, sector = struct.unpack("<hh8s8s8sh", sraw)
+        toptex = wad.pythonifyString(toptex)
+        bottomtex = wad.pythonifyString(bottomtex)
+        middletex = wad.pythonifyString(middletex)
+
+        all_used.add(toptex)
+        all_used.add(bottomtex)
+        all_used.add(middletex)
+
+    for name in all_used:
+        if not name.strip() or name.strip() == "-":
+            continue
+
+        outpath = os.path.join(texturesdir, "%s%srgb" % (name, os.path.extsep))
+
+        texdef = texutil.findTextureDef(name)
+        tex = texutil.getTexture(texdef)
+
+        rows = []
+        maskrows = []
+        for y in xrange(tex.height):
+            rows.append( "".join( (col[y] for col in tex.columns) ) )
+            maskrows.append( "".join( (col[y] for col in tex.masks) ) )
+
+        allpixels = "".join(rows)
+        rgbs = "".join( (texutil.palettes[PALNUM][pix] for pix in allpixels) )
+
+        allmask = "".join(maskrows)
+        if "\x00" not in allmask:
+            # all pixels opaque; no mask
+            mask = None
+        else:
+            mask = allmask
+
+        with open(outpath, "wb") as fp:
+            fp.write(struct.pack("<I", tex.width))
+            fp.write(struct.pack("<I", tex.height))
+            fp.write(rgbs)
+            if mask:
+                fp.write(mask)
+
+
+def _dumpFlats(destdir, sectors_raw):
+    flatsdir = os.path.join(destdir, "flats")
+    _mkdir(flatsdir)
+
+    all_used = set()
+
+    for idx, sraw in enumerate(wad.chopBytes(sectors_raw, 26)):
+        f_height, c_height, f_tex, c_tex, light, special, tag = struct.unpack("<hh8s8shhh", sraw)
+        f_tex = wad.pythonifyString(f_tex)
+        c_tex = wad.pythonifyString(c_tex)
+
+        all_used.add(f_tex)
+        all_used.add(c_tex)
+
+    for name in all_used:
+        outpath = os.path.join(flatsdir, "%s%srgb" % (name, os.path.extsep))
+
+        if name == "F_SKY1":
+            # Heretic's sky flat doesn't have 4096 bytes. It's used as a
+            # place-holder anyways so it doesn't matter what we fill it
+            # with.
+            pixels = "\xfb" * (64 * 64)
+        else:
+            pixels = texutil.getFlat(name)
+
+        rgbs = "".join( (texutil.palettes[PALNUM][pix] for pix in pixels) )
+
+        with open(outpath, "wb") as fp:
+            fp.write(struct.pack("<I", 64))
+            fp.write(struct.pack("<I", 64))
+            fp.write(rgbs)
+
+
 def _dumpMap(w, mapname, lumps):
-    if not os.path.isdir(mapname):
-        if os.path.isfile(mapname):
-            raise ValueError("map file \"%s\" already exists" % mapname)
-        os.mkdir(mapname)
+    _mkdir(mapname)
 
     dumpout = {}
     dumpout["THINGS"] = _dumpTHINGS
@@ -89,7 +178,14 @@ def _dumpMap(w, mapname, lumps):
 
     for l in lumps:
         if l.name in dumpout:
-            dumpout[l.name](mapname, w.readLump(l))
+            lumpraw = w.readLump(l)
+
+            dumpout[l.name](mapname, lumpraw)
+
+            if l.name == "SIDEDEFS":
+                _dumpTextures(mapname, lumpraw)
+            elif l.name == "SECTORS":
+                _dumpFlats(mapname, lumpraw)
 
 
 def main(argv):
@@ -99,11 +195,13 @@ def main(argv):
 
     w = wad.Wad(argv[1])
 
+    texutil.loadFromWad(w)
+
     for mapname in argv[2:]:
         mapname = mapname.upper()
         _dumpMap(w, mapname, _findMapLumps(w, mapname))
 
-    w.close()
+    texutil.clear()
 
 
 if __name__ == "__main__":

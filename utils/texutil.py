@@ -58,8 +58,8 @@ def clear():
 
     if wadfile:
         wadfile.close()
+        wadfile = None
 
-    wadfile = None
     texturedefs = None
     pnames = None
     texturelists = None
