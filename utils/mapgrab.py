@@ -245,7 +245,7 @@ def _loadObjList(path):
                 if str_.startswith("\""):
                     val = str_.strip("\"")
                 else:
-                    val = int(str_)
+                    val = int(str_, 0)
                 setattr(obj, hdr[idx], val)
             ret.append(obj)
 
