@@ -131,13 +131,13 @@ Pak_Read (const char *name, unsigned int *size)
 
 	/* try a file first */
 	{
+		void *ret = NULL;
 		int fd;
 		if ((fd = open(name, O_RDONLY)) != -1)
 		{
 			int sz = lseek (fd, 0, SEEK_END);
 			if (sz != -1)
 			{
-				void *ret;
 				if ((ret = malloc(sz + 1)) != NULL)
 				{
 					lseek (fd, 0, SEEK_SET);
@@ -151,13 +151,14 @@ Pak_Read (const char *name, unsigned int *size)
 						((char *)ret)[sz] = '\0';
 						if (size != NULL)
 							*size = sz;
-						return ret;
 					}
 				}
 			}
 			close (fd);
 			fd = -1;
 		}
+		if (ret != NULL)
+			return ret;
 	}
 
 	for (pak = paks.next; pak != NULL; pak = pak->next)
