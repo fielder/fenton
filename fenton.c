@@ -105,10 +105,10 @@ F_RunTime (int msecs)
 static void
 RunInput (void)
 {
-#if 0
 	if (input.key.release[27])
-		Quit ();
+		F_Quit ();
 
+#if 0
 	if (input.key.release['g'])
 		ToggleGrab ();
 

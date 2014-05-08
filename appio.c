@@ -25,10 +25,7 @@ void
 IO_Init (void)
 {
 	if (SDL_InitSubSystem(SDL_INIT_VIDEO) != 0)
-	{
 		F_Error ("video init failed");
-		F_Quit ();
-	}
 }
 
 
@@ -38,9 +35,7 @@ DestroyWindow (void)
 	if (sdl_surf != NULL)
 	{
 		SDL_EnableKeyRepeat (SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
-		SDL_WM_GrabInput (SDL_GRAB_OFF);
-		SDL_ShowCursor (SDL_ENABLE);
-
+		IO_SetGrab (0);
 		SDL_FreeSurface (sdl_surf);
 		sdl_surf = NULL;
 	}
@@ -64,14 +59,15 @@ DestroyWindow (void)
 void
 IO_SetMode (int w, int h, int bpp, int scale)
 {
-	DestroyWindow ();
 	Uint32 flags;
 #if 0
 	int y;
 #endif
 
-	IO_Print ("Setting mode %dx%dx%d\n", w, h, bpp);
-	printf ("Scaling %dx\n", scale);
+//	IO_Print ("Setting mode %dx%dx%d\n", w, h, bpp);
+//	printf ("Scaling %dx\n", scale);
+
+	DestroyWindow ();
 
 	flags = SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_HWPALETTE;
 #if 0
@@ -104,12 +100,15 @@ void
 IO_Shutdown (void)
 {
 	DestroyWindow ();
+
+	SDL_QuitSubSystem (SDL_INIT_VIDEO);
 }
 
 
 void
 IO_Terminate (void)
 {
+	SDL_QuitSubSystem (SDL_INIT_TIMER);
 	SDL_Quit ();
 	exit (EXIT_SUCCESS);
 }
@@ -227,8 +226,37 @@ IO_FetchInput (void)
 
 
 void
+IO_SetGrab (int grab)
+{
+	if (grab && !_mouse_grabbed)
+	{
+		SDL_WM_GrabInput (SDL_GRAB_ON);
+		SDL_ShowCursor (SDL_DISABLE);
+		_mouse_grabbed = 1;
+		_mouse_ignore_move = 1;
+	}
+	else if (!grab && _mouse_grabbed)
+	{
+		SDL_WM_GrabInput (SDL_GRAB_OFF);
+		SDL_ShowCursor (SDL_ENABLE);
+		_mouse_grabbed = 0;
+		_mouse_ignore_move = 1;
+	}
+}
+
+
+void
+IO_ToggleGrab (void)
+{
+	IO_SetGrab (!_mouse_grabbed);
+}
+
+
+void
 IO_Swap (void)
 {
+	//TODO
+	//TODO
 	//TODO
 }
 

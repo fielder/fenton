@@ -73,6 +73,12 @@ extern void
 IO_FetchInput (void);
 
 extern void
+IO_SetGrab (int grab);
+
+extern void
+IO_ToggleGrab (void);
+
+extern void
 IO_Swap (void);
 
 #endif /* __APPIO_H__ */
