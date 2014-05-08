@@ -127,16 +127,16 @@ Pak_CloseAll (void)
 void *
 Pak_Read (const char *name, unsigned int *size)
 {
-	struct pak_s *pak;
+	const struct pak_s *pak;
 
 	/* try a file first */
 	{
 		void *ret = NULL;
-		int fd;
-		if ((fd = open(name, O_RDONLY)) != -1)
+		int fd = open (name, O_RDONLY);
+		if (fd != -1)
 		{
 			int sz = lseek (fd, 0, SEEK_END);
-			if (sz != -1)
+			if (sz != -1 && sz < (1024 * 1024 * 1024))
 			{
 				if ((ret = malloc(sz + 1)) != NULL)
 				{
@@ -163,7 +163,7 @@ Pak_Read (const char *name, unsigned int *size)
 
 	for (pak = paks.next; pak != NULL; pak = pak->next)
 	{
-		struct pakfile_s *pf;
+		const struct pakfile_s *pf;
 		int i;
 		for (	i = 0, pf = pak->files;
 			i < pak->num_files && strcmp(pf->name, name) != 0;
