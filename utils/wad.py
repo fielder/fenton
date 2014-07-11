@@ -6,16 +6,13 @@ import types
 import struct
 
 
-def chopBytes(b, chunk_len, count=None, start_offset=None):
+def chopBytes(b, chunk_len, count=None, start_offset=0):
     """
     Run through a string of bytes, yielding consecutive chunks out of
     it. A starting byte offset can be given.
     Note the last chunk could be less than chunk_len if the total length
     isn't a multiple of chunk_len.
     """
-
-    if start_offset is None:
-        start_offset = 0
 
     if count is not None:
         idx = start_offset

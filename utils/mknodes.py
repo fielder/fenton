@@ -109,11 +109,11 @@ def makeNodes(mapdir):
             if n.front is not None:
                 s += " %d" % n.front.idx
             else:
-                s += " -"
+                s += " \"leaf\""
             if n.back is not None:
                 s += " %d" % n.back.idx
             else:
-                s += " -"
+                s += " \"leaf\""
             s += "\n"
             fp.write(s)
 

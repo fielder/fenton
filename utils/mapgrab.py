@@ -3,6 +3,7 @@
 import sys
 import os
 import struct
+import collections
 
 import wad
 import texutil
@@ -210,7 +211,16 @@ def main(argv):
     texutil.clear()
 
 
-def _loadObjList(path):
+def orderedObjs(objs):
+    """
+    For objs loaded from a list file, assuming each entry has an .idx
+    attribute, simply put them into a dict for key'ing by the .idx
+    """
+
+    return collections.OrderedDict( ((o.idx, o) for o in objs) )
+
+
+def loadObjList(path):
     ret = []
 
     with open(path, "rt") as fp:
@@ -244,6 +254,8 @@ def _loadObjList(path):
             for idx, str_ in enumerate(items):
                 if str_.startswith("\""):
                     val = str_.strip("\"")
+                elif "." in str_:
+                    val = float(str_)
                 else:
                     val = int(str_, 0)
                 setattr(obj, hdr[idx], val)
@@ -252,19 +264,19 @@ def _loadObjList(path):
     return ret
 
 def loadTextTHINGS(mapdir):
-    return _loadObjList(os.path.join(mapdir, THINGS_FILE))
+    return loadObjList(os.path.join(mapdir, THINGS_FILE))
 
 def loadTextVERTEXES(mapdir):
-    return _loadObjList(os.path.join(mapdir, VERTEXES_FILE))
+    return loadObjList(os.path.join(mapdir, VERTEXES_FILE))
 
 def loadTextLINEDEFS(mapdir):
-    return _loadObjList(os.path.join(mapdir, LINEDEFS_FILE))
+    return loadObjList(os.path.join(mapdir, LINEDEFS_FILE))
 
 def loadTextSIDEDEFS(mapdir):
-    return _loadObjList(os.path.join(mapdir, SIDEDEFS_FILE))
+    return loadObjList(os.path.join(mapdir, SIDEDEFS_FILE))
 
 def loadTextSECTORS(mapdir):
-    return _loadObjList(os.path.join(mapdir, SECTORS_FILE))
+    return loadObjList(os.path.join(mapdir, SECTORS_FILE))
 
 
 if __name__ == "__main__":
