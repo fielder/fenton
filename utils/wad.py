@@ -1,12 +1,13 @@
+#!/usr/bin/env python3
+
 """
 Utility to load/save DOOM engine wad files.
 """
 
-import types
 import struct
 
 
-def chopBytes(b, chunk_len, count=None, start_offset=0):
+def iterChopBytes(b, chunk_len, count=None, start_offset=0):
     """
     Run through a string of bytes, yielding consecutive chunks out of
     it. A starting byte offset can be given.
@@ -27,26 +28,23 @@ def chopBytes(b, chunk_len, count=None, start_offset=0):
             idx += chunk_len
 
 
-def pythonifyString(s):
+def wadBytesToString(b):
     """
-    Get rid of c-style string terminators.
-    """
-
-    if "\x00" in s:
-        s = s[:s.index("\x00")]
-    return s.upper()
-
-
-def wadifyString(s):
-    """
-    Pad a wad string out to a certain length, padding with empty bytes.
-    Note the strings won't necessarily be terminated.
+    Convert a byte sequence read from a wad file to a python string.
     """
 
-    s = pythonifyString(s)
-    if len(s) < 8:
-        s += "\x00" * (8 - len(s))
-    return s
+    if b"\x00" in b:
+        b = b[:b.index(b"\x00")]
+    return b.decode().upper()
+
+
+def stringToWadBytes(s):
+    """
+    Format a string to be used as a string stored in a wad file.
+    """
+
+    b = s.upper().encode()
+    return b + b"\x00" * (8 - len(b))
 
 
 def writeWad(path, lumps):
@@ -55,31 +53,28 @@ def writeWad(path, lumps):
     (name, data) form.
     """
 
-    fp = open(path, "wb")
+    with open(path, "wb") as fp:
+        # dummy header, will get overwritten later
+        fp.write(b"\x00" * 12)
 
-    # dummy header, will get overwritten later
-    fp.write("\x00" * 12)
+        # lump data
+        offs = []
+        for lumpname, lumpdata in lumps:
+            offs.append(fp.tell())
+            fp.write(lumpdata)
 
-    # lump data
-    offs = []
-    for lumpname, lumpdata in lumps:
-        offs.append(fp.tell())
-        fp.write(lumpdata)
+        # entry table
+        infotableofs = fp.tell()
+        for offset, (lumpname, lumpdata) in zip(offs, lumps):
+            fp.write(struct.pack("<i", offset))
+            fp.write(struct.pack("<i", len(lumpdata)))
+            fp.write(stringToWadBytes(lumpname))
 
-    # entry table
-    infotableofs = fp.tell()
-    for offset, (lumpname, lumpdata) in zip(offs, lumps):
-        fp.write(struct.pack("<i", offset))
-        fp.write(struct.pack("<i", len(lumpdata)))
-        fp.write(wadifyString(lumpname))
-
-    # header
-    fp.seek(0)
-    fp.write("PWAD")
-    fp.write(struct.pack("<i", len(lumps)))
-    fp.write(struct.pack("<i", infotableofs))
-
-    fp.close()
+        # header
+        fp.seek(0)
+        fp.write(b"PWAD")
+        fp.write(struct.pack("<i", len(lumps)))
+        fp.write(struct.pack("<i", infotableofs))
 
 
 class WadLump(object):
@@ -90,10 +85,18 @@ class WadLump(object):
 
     DISK_SIZE = 16
 
-    def __init__(self, raw):
-        self.filepos, = struct.unpack("<i", raw[0:4])
-        self.size, = struct.unpack("<i", raw[4:8])
-        self.name = pythonifyString(raw[8:16])
+    def __init__(self):
+        self.filepos = 0
+        self.size = 0
+        self.name = ""
+
+    @classmethod
+    def newFromBytes(self, raw, offs):
+        ret = WadLump()
+        ret.filepos, = struct.unpack("<i", raw[offs + 0:offs + 4])
+        ret.size, = struct.unpack("<i", raw[offs + 4:offs + 8])
+        ret.name = wadBytesToString(raw[offs + 8:offs + 16])
+        return ret
 
 
 class Wad(object):
@@ -114,7 +117,7 @@ class Wad(object):
     def open(self, path):
         handle = open(path, "rb")
 
-        if handle.read(4) not in ("IWAD", "PWAD"):
+        if handle.read(4) not in (b"IWAD", b"PWAD"):
             raise Exception("\"%s\" is not a valid wad file" % path)
 
         numlumps, = struct.unpack("<i", handle.read(4))
@@ -122,7 +125,7 @@ class Wad(object):
 
         handle.seek(infotableofs)
         raw = handle.read(numlumps * WadLump.DISK_SIZE)
-        lumps = [WadLump(raw[idx * WadLump.DISK_SIZE:(idx + 1) * WadLump.DISK_SIZE]) for idx in xrange(numlumps)]
+        lumps = [WadLump.newFromBytes(raw, idx * WadLump.DISK_SIZE) for idx in range(numlumps)]
 
         self.close()
         self.lumps = lumps
@@ -134,6 +137,7 @@ class Wad(object):
         if self._handle:
             self.lumps = []
             self.lump_name_to_num = {}
+            self.lump_names = []
             self._handle.close()
             self._handle = None
 
@@ -145,11 +149,11 @@ class Wad(object):
         raise Exception("unable to find lump \"%s\"" % lumpname)
 
     def readLump(self, l):
-        if type(l) == types.IntType:
+        if isinstance(l, int):
             l = self.lumps[l]
-        elif type(l) == types.StringType:
+        elif isinstance(l, str):
             l = self.lumps[self.lump_name_to_num[l]]
-        elif type(l) == WadLump:
+        elif isinstance(l, WadLump):
             pass
         else:
             raise Exception("invalid lump \"%s\"" % l)
@@ -168,10 +172,10 @@ if __name__ == "__main__":
         pass
     elif len(sys.argv) == 2:
         w = Wad(sys.argv[1])
-        print "offset size name"
+        print("offset size name")
         for l in w.lumps:
-            print l.filepos, l.size, l.name
-        print "%d lumps" % len(w.lumps)
+            print(l.filepos, l.size, l.name)
+        print("%d lumps" % len(w.lumps))
     else:
         w = Wad(sys.argv[1])
         for lumpname in sys.argv[2:]:
@@ -180,4 +184,4 @@ if __name__ == "__main__":
             fp = open(lumpname, "wb")
             fp.write(dat)
             fp.close()
-            print "wrote %d bytes to \"%s\"" % (len(dat), lumpname)
+            print("wrote %d bytes to \"%s\"" % (len(dat), lumpname))
