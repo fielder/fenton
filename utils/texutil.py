@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import collections
 import struct
 
@@ -8,9 +10,9 @@ class Texture(object):
     name = ""
     width = 0
     height = 0
-    columns = None # list of strings, each <height> bytes long
-    masks = None # list of strings indicating if a pixel is
-                 # transparent ("\x00"), or opaque ("\x01")
+    columns = None # list of bytes, each <height> bytes long
+    masks = None # list of bytes indicating if a pixel is
+                 # transparent (0), or opaque (1)
                  # masks is None if fully opaque
 
 class TextureDef(object):
@@ -35,7 +37,7 @@ class Patch(object):
 
 class Post(object):
     topdelta = 0
-    pixels = None
+    pixels = None # bytes string
 
 
 wadfile = None
@@ -71,7 +73,7 @@ def clear():
 def loadFromWad(w):
     global wadfile
 
-    if isinstance(w, basestring):
+    if isinstance(w, str):
         w = wad.Wad(w)
     elif isinstance(w, wad.Wad):
         pass
@@ -96,8 +98,8 @@ def loadPalettes():
 
     playpal = wadfile.readLump("PLAYPAL")
     palettes = []
-    for rawpal in wad.chopBytes(playpal, 768):
-        pal = { chr(i): rawpal[i * 3: i * 3 + 3] for i in xrange(256) }
+    for rawpal in wad.iterChopBytes(playpal, 768):
+        pal = { i: rawpal[i * 3: i * 3 + 3] for i in range(256) }
         palettes.append(pal)
 
 
@@ -108,8 +110,8 @@ def loadPNAMES():
     cnt, = struct.unpack("<i", raw[:4])
 
     pnames = []
-    for name8 in wad.chopBytes(raw, 8, count=cnt, start_offset=4):
-        pnames.append(wad.pythonifyString(name8))
+    for name8 in wad.iterChopBytes(raw, 8, count=cnt, start_offset=4):
+        pnames.append(wad.wadBytesToString(name8))
 
 
 def loadTextureList(texlistnum):
@@ -125,9 +127,9 @@ def loadTextureList(texlistnum):
     lump = wadfile.lumps[wadfile.lump_name_to_num[texlistname]]
     raw = wadfile.readLump(lump)
     cnt, = struct.unpack("<i", raw[:4])
-    for entry in wad.chopBytes(raw, 4, count=cnt, start_offset=4):
+    for entry in wad.iterChopBytes(raw, 4, count=cnt, start_offset=4):
         texdef_offset = lump.filepos + struct.unpack("<i", entry)[0]
-        name = wad.pythonifyString(wadfile.readBytes(texdef_offset, 8))
+        name = wad.wadBytesToString(wadfile.readBytes(texdef_offset, 8))
         tex_name_to_fileofs[name] = texdef_offset
 
     texturelists[texlistname] = tex_name_to_fileofs
@@ -137,24 +139,27 @@ def loadTextureDefs():
     global texturedefs
 
     texturedefs = []
-    for texlist in texturelists.itervalues():
-        for fileofs in texlist.itervalues():
-            texturedefs.append(getTextureDef(fileofs))
+    for texlist in texturelists.values():
+        for texdef_offset in texlist.values():
+            texturedefs.append(getTextureDef(texdef_offset))
 
 
 def getTextureDef(fileofs):
-    name = wad.pythonifyString(wadfile.readBytes(fileofs, 8))
+    name = wad.wadBytesToString(wadfile.readBytes(fileofs, 8))
+    # bytes 8-11 are unused
     width, = struct.unpack("<h", wadfile.readBytes(fileofs + 12, 2))
     height, = struct.unpack("<h", wadfile.readBytes(fileofs + 14, 2))
+    # bytes 16-19 are unused
     numpatches, = struct.unpack("<h", wadfile.readBytes(fileofs + 20, 2))
 
     patchdefs = []
     patchdefsraw = wadfile.readBytes(fileofs + 22, numpatches * 10)
-    for raw in wad.chopBytes(patchdefsraw, 10, count=numpatches):
+    for raw in wad.iterChopBytes(patchdefsraw, 10, count=numpatches):
         tdp = TextureDefPatch()
         tdp.originx, = struct.unpack("<h", raw[0:2])
         tdp.originy, = struct.unpack("<h", raw[2:4])
         tdp.patchnum, = struct.unpack("<h", raw[4:6])
+        # bytes 6-9 are unused
         patchdefs.append(tdp)
 
     ret = TextureDef()
@@ -187,14 +192,14 @@ def loadPatches():
         top_off, = struct.unpack("<h", raw[6:8])
 
         posts = []
-        for columnofsraw in wad.chopBytes(raw, 4, count=w, start_offset=8):
+        for columnofsraw in wad.iterChopBytes(raw, 4, count=w, start_offset=8):
             columnofs, = struct.unpack("<i", columnofsraw)
 
             colposts = []
             idx = columnofs
-            while raw[idx] != "\xff":
-                topdelta = ord(raw[idx])
-                length = ord(raw[idx + 1])
+            while raw[idx] != 255:
+                topdelta = raw[idx]
+                length = raw[idx + 1]
                 pixels = raw[idx + 3:idx + 3 + length]
                 idx += length + 4
 
@@ -229,14 +234,14 @@ def _paintColumn(col, mask, posts, originy):
             count = len(col) - position
 
         if count > 0:
-            for idx in xrange(count):
+            for idx in range(count):
                 col[position + idx] = post.pixels[idx]
-                mask[position + idx] = "\x01"
+                mask[position + idx] = 1
 
 
 def getTexture(texdef):
-    cols = [["\x00"] * texdef.height for x in xrange(texdef.width)]
-    masks = [["\x00"] * texdef.height for x in xrange(texdef.width)]
+    cols = [[0] * texdef.height for x in range(texdef.width)]
+    masks = [[0] * texdef.height for x in range(texdef.width)]
 
     for tdp in texdef.patches:
         patch = patches[pnames[tdp.patchnum]]
@@ -256,8 +261,8 @@ def getTexture(texdef):
     ret.name = texdef.name
     ret.width = texdef.width
     ret.height = texdef.height
-    ret.columns = [ "".join(col) for col in cols ]
-    ret.masks = [ "".join(col) for col in masks ]
+    ret.columns = [ bytes(col) for col in cols ]
+    ret.masks = [ bytes(col) for col in masks ]
 
     return ret
 
@@ -265,7 +270,7 @@ def getTexture(texdef):
 def getFlat(name):
     start = wadfile.lump_name_to_num["F_START"]
     end = wadfile.lump_name_to_num["F_END"]
-    for idx in xrange(start + 1, end):
+    for idx in range(start + 1, end):
         lump = wadfile.lumps[idx]
         if lump.name == name and lump.size == 4096:
             return wadfile.readLump(lump)
@@ -273,6 +278,13 @@ def getFlat(name):
 
 
 if __name__ == "__main__":
-    loadFromWad("doom.wad")
-    textures = [getTexture(td) for td in texturedefs]
-    print "%d textures loaded" % len(textures)
+    import sys
+
+    if len(sys.argv) == 1:
+        pass
+    elif len(sys.argv) == 2:
+        loadFromWad(sys.argv[1])
+        textures = [getTexture(td) for td in texturedefs]
+        print("%d textures loaded" % len(textures))
+    else:
+        pass
