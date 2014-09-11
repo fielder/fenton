@@ -9,49 +9,49 @@
 #define RAD2DEG(_X) ((_X) * (180.0 / M_PI))
 
 extern void
-Vec_Clear (float v[3]);
+Vec_Clear (double v[3]);
 
 extern void
-Vec_Copy (const float src[3], float out[3]);
+Vec_Copy (const double src[3], double out[3]);
 
 extern void
-Vec_Scale (float v[3], float s);
+Vec_Scale (double v[3], double s);
 
 extern void
-Vec_Add (const float a[3], const float b[3], float out[3]);
+Vec_Add (const double a[3], const double b[3], double out[3]);
 
 extern void
-Vec_Subtract (const float a[3], const float b[3], float out[3]);
+Vec_Subtract (const double a[3], const double b[3], double out[3]);
 
-extern float
-Vec_Dot (const float a[3], const float b[3]);
-
-extern void
-Vec_Cross (const float a[3], const float b[3], float out[3]);
+extern double
+Vec_Dot (const double a[3], const double b[3]);
 
 extern void
-Vec_Normalize (float v[3]);
-
-extern float
-Vec_Length (const float v[3]);
+Vec_Cross (const double a[3], const double b[3], double out[3]);
 
 extern void
-Vec_Transform (float xform[3][3], const float v[3], float out[3]);
+Vec_Normalize (double v[3]);
+
+extern double
+Vec_Length (const double v[3]);
 
 extern void
-Vec_MakeNormal (const float v1[3],
-		const float v2[3],
-		const float v3[3],
-		float normal[3],
-		float *dist);
+Vec_Transform (double xform[3][3], const double v[3], double out[3]);
 
 extern void
-Vec_IdentityMatrix (float mat[3][3]);
+Vec_MakeNormal (const double v1[3],
+		const double v2[3],
+		const double v3[3],
+		double normal[3],
+		double *dist);
 
 extern void
-Vec_MultMatrix (float a[3][3], float b[3][3], float out[3][3]);
+Vec_IdentityMatrix (double mat[3][3]);
 
 extern void
-Vec_AnglesMatrix (const float angles[3], float out[3][3], const char *order);
+Vec_MultMatrix (double a[3][3], double b[3][3], double out[3][3]);
+
+extern void
+Vec_AnglesMatrix (const double angles[3], double out[3][3], const char *order);
 
 #endif /* __VEC_H__ */

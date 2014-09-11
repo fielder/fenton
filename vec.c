@@ -9,7 +9,7 @@
 
 
 void
-Vec_Clear (float v[3])
+Vec_Clear (double v[3])
 {
 	v[0] = 0.0;
 	v[1] = 0.0;
@@ -18,7 +18,7 @@ Vec_Clear (float v[3])
 
 
 void
-Vec_Copy (const float src[3], float out[3])
+Vec_Copy (const double src[3], double out[3])
 {
 	out[0] = src[0];
 	out[1] = src[1];
@@ -27,7 +27,7 @@ Vec_Copy (const float src[3], float out[3])
 
 
 void
-Vec_Scale (float v[3], float s)
+Vec_Scale (double v[3], double s)
 {
 	v[0] *= s;
 	v[1] *= s;
@@ -36,7 +36,7 @@ Vec_Scale (float v[3], float s)
 
 
 void
-Vec_Add (const float a[3], const float b[3], float out[3])
+Vec_Add (const double a[3], const double b[3], double out[3])
 {
 	out[0] = a[0] + b[0];
 	out[1] = a[1] + b[1];
@@ -45,7 +45,7 @@ Vec_Add (const float a[3], const float b[3], float out[3])
 
 
 void
-Vec_Subtract (const float a[3], const float b[3], float out[3])
+Vec_Subtract (const double a[3], const double b[3], double out[3])
 {
 	out[0] = a[0] - b[0];
 	out[1] = a[1] - b[1];
@@ -53,15 +53,15 @@ Vec_Subtract (const float a[3], const float b[3], float out[3])
 }
 
 
-float
-Vec_Dot (const float a[3], const float b[3])
+double
+Vec_Dot (const double a[3], const double b[3])
 {
 	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
 
 void
-Vec_Cross (const float a[3], const float b[3], float out[3])
+Vec_Cross (const double a[3], const double b[3], double out[3])
 {
 	out[0] = a[1] * b[2] - a[2] * b[1];
 	out[1] = a[2] * b[0] - a[0] * b[2];
@@ -70,9 +70,9 @@ Vec_Cross (const float a[3], const float b[3], float out[3])
 
 
 void
-Vec_Normalize (float v[3])
+Vec_Normalize (double v[3])
 {
-	float len;
+	double len;
 
 	len = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
 	if (len == 0.0)
@@ -90,15 +90,15 @@ Vec_Normalize (float v[3])
 }
 
 
-float
-Vec_Length (const float v[3])
+double
+Vec_Length (const double v[3])
 {
 	return sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
 }
 
 
 void
-Vec_Transform (float xform[3][3], const float v[3], float out[3])
+Vec_Transform (double xform[3][3], const double v[3], double out[3])
 {
 	out[0] = xform[0][0] * v[0] + xform[0][1] * v[1] + xform[0][2] * v[2];
 	out[1] = xform[1][0] * v[0] + xform[1][1] * v[1] + xform[1][2] * v[2];
@@ -107,13 +107,13 @@ Vec_Transform (float xform[3][3], const float v[3], float out[3])
 
 
 void
-Vec_MakeNormal (const float v1[3],
-		const float v2[3],
-		const float v3[3],
-		float normal[3],
-		float *dist)
+Vec_MakeNormal (const double v1[3],
+		const double v2[3],
+		const double v3[3],
+		double normal[3],
+		double *dist)
 {
-	float a[3], b[3];
+	double a[3], b[3];
 
 	Vec_Subtract (v2, v1, a);
 	Vec_Subtract (v3, v1, b);
@@ -127,7 +127,7 @@ Vec_MakeNormal (const float v1[3],
 
 
 void
-Vec_IdentityMatrix (float mat[3][3])
+Vec_IdentityMatrix (double mat[3][3])
 {
 	mat[0][0] = 1.0; mat[0][1] = 0.0; mat[0][2] = 0.0;
 	mat[1][0] = 0.0; mat[1][1] = 1.0; mat[1][2] = 0.0;
@@ -136,7 +136,7 @@ Vec_IdentityMatrix (float mat[3][3])
 
 
 void
-Vec_MultMatrix (float a[3][3], float b[3][3], float out[3][3])
+Vec_MultMatrix (double a[3][3], double b[3][3], double out[3][3])
 {
 	out[0][0] = a[0][0] * b[0][0] + a[0][1] * b[1][0] + a[0][2] * b[2][0];
 	out[0][1] = a[0][0] * b[0][1] + a[0][1] * b[1][1] + a[0][2] * b[2][1];
@@ -153,16 +153,16 @@ Vec_MultMatrix (float a[3][3], float b[3][3], float out[3][3])
 
 
 void
-Vec_AnglesMatrix (const float angles[3], float out[3][3], const char *order)
+Vec_AnglesMatrix (const double angles[3], double out[3][3], const char *order)
 {
 	double cx, sx;
 	double cy, sy;
 	double cz, sz;
 
-	float x[3][3];
-	float y[3][3];
-	float z[3][3];
-	float temp[3][3];
+	double x[3][3];
+	double y[3][3];
+	double z[3][3];
+	double temp[3][3];
 
 	cx = cos (angles[0]);
 	sx = sin (angles[0]);

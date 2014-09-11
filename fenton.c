@@ -1,24 +1,21 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include "bswap.h"
-#include "pak.h"
-#include "render.h"
+//#include "bswap.h"
+//#include "pak.h"
+//#include "render.h"
 #include "appio.h"
 #include "fenton.h"
 
-static void
-RunInput (void);
-
-float frametime;
+double frametime;
 unsigned int elapsedtime_ms = 0;
 
-static const char *pakpath = "doom.pak";
+//static const char *pakpath = "doom.pak";
 
 static struct
 {
 	int framecount;
-	float rate;
+	double rate;
 	unsigned int calc_start;
 } fps;
 
@@ -26,8 +23,8 @@ static struct
 void
 F_Quit (void)
 {
-	R_Shutdown ();
-	Pak_CloseAll ();
+	//R_Shutdown ();
+	//Pak_CloseAll ();
 	IO_Shutdown ();
 	IO_Terminate ();
 }
@@ -62,16 +59,19 @@ F_Error (const char *fmt, ...)
 void
 F_Init (void)
 {
-	SwapInit ();
+	//SwapInit ();
 
-	if (!Pak_AddFile(pakpath))
-		F_Error ("unable to load %s", pakpath);
+//	if (!Pak_AddFile(pakpath))
+//		F_Error ("unable to load %s", pakpath);
 
 	IO_Init ();
 
-	R_Init ();
+//	R_Init ();
 }
 
+
+static void
+RunInput (void);
 
 void
 F_RunTime (int msecs)
@@ -83,7 +83,7 @@ F_RunTime (int msecs)
 
 	RunInput ();
 
-	R_Refresh ();
+//	R_Refresh ();
 
 	IO_Swap ();
 
@@ -105,7 +105,7 @@ F_RunTime (int msecs)
 static void
 RunInput (void)
 {
-	if (input.key.release[27])
+	if (input.key.release[FK_ESCAPE])
 		F_Quit ();
 
 #if 0

@@ -1,41 +1,34 @@
-#include <stdint.h>
+//#include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
+//#include <string.h>
 
-#include "fenton.h"
-#include "pak.h"
-#include "rdata.h"
+//#include "fenton.h"
+//#include "pak.h"
+//#include "rdata.h"
 
-#define TEXTURE_VERSION 1
+#define TEXTURE_VERSION 2
 
 struct dtextureheader_s
 {
 	char id[8];
-	unsigned short version;
+	unsigned int version;
 	char wadname[8];
-	unsigned short width;
-	unsigned short height;
-	unsigned short original_width;
-	unsigned short original_height;
-	unsigned short masked;
-	unsigned int datalen;
+	unsigned int width;
+	unsigned int height;
+	unsigned int original_width;
+	unsigned int original_height;
+	unsigned int masked;
+	unsigned int numlevels;
 };
 
 
+#if 0
 static unsigned int
 getUInt (const void *ptr)
 {
 	const unsigned char *bytes = ptr;
 	return	((unsigned int)bytes[0] << 0) | ((unsigned int)bytes[1] << 8) |
 		((unsigned int)bytes[2] << 16) | ((unsigned int)bytes[3] << 24);
-}
-
-
-static unsigned short
-getUShort (const void *ptr)
-{
-	const unsigned char *bytes = ptr;
-	return ((unsigned short)bytes[0] << 0) | ((unsigned short)bytes[1] << 8);
 }
 
 
@@ -46,6 +39,7 @@ RGB24to16 (const unsigned char *rgb)
 		(((pixel_t)rgb[1] << 3) & 0x07e0) |
 		(((pixel_t)rgb[2] >> 3) & 0x001f);
 }
+#endif
 
 
 struct texture_s *
@@ -56,6 +50,8 @@ Dat_FreeTexture (struct texture_s *tex)
 	return NULL;
 }
 
+
+#if 0
 
 //FIXME: mask data should really be aligned by 2 or 4 so to misalign
 //	off following multi-byte pixels
@@ -81,23 +77,23 @@ ParseTexture (const uint8_t *bytes, int sz)
 	if (sz <= sizeof(hdr))
 		return NULL;
 
-	memcpy (&hdr.id, bytes + 0, sizeof(hdr.id));
-	memcpy (&hdr.version, bytes + 8, sizeof(hdr.version));
-	memcpy (&hdr.wadname, bytes + 10, sizeof(hdr.wadname));
-	memcpy (&hdr.width, bytes + 18, sizeof(hdr.width));
-	memcpy (&hdr.height, bytes + 20, sizeof(hdr.height));
-	memcpy (&hdr.original_width, bytes + 22, sizeof(hdr.original_width));
-	memcpy (&hdr.original_height, bytes + 24, sizeof(hdr.original_height));
-	memcpy (&hdr.masked, bytes + 26, sizeof(hdr.masked));
-	memcpy (&hdr.datalen, bytes + 28, sizeof(hdr.datalen));
+//	memcpy (&hdr.id, bytes + 0, sizeof(hdr.id));
+//	memcpy (&hdr.version, bytes + 8, sizeof(hdr.version));
+//	memcpy (&hdr.wadname, bytes + 10, sizeof(hdr.wadname));
+//	memcpy (&hdr.width, bytes + 18, sizeof(hdr.width));
+//	memcpy (&hdr.height, bytes + 20, sizeof(hdr.height));
+//	memcpy (&hdr.original_width, bytes + 22, sizeof(hdr.original_width));
+//	memcpy (&hdr.original_height, bytes + 24, sizeof(hdr.original_height));
+//	memcpy (&hdr.masked, bytes + 26, sizeof(hdr.masked));
+//	memcpy (&hdr.datalen, bytes + 28, sizeof(hdr.datalen));
 
-	hdr.version = getUShort (&hdr.version);
-	hdr.width = getUShort (&hdr.width);
-	hdr.height = getUShort (&hdr.height);
-	hdr.original_width = getUShort (&hdr.original_width);
-	hdr.original_height = getUShort (&hdr.original_height);
-	hdr.masked = getUShort (&hdr.masked);
-	hdr.datalen = getUInt (&hdr.datalen);
+//	hdr.version = getUShort (&hdr.version);
+//	hdr.width = getUShort (&hdr.width);
+//	hdr.height = getUShort (&hdr.height);
+//	hdr.original_width = getUShort (&hdr.original_width);
+//	hdr.original_height = getUShort (&hdr.original_height);
+//	hdr.masked = getUShort (&hdr.masked);
+//	hdr.datalen = getUInt (&hdr.datalen);
 
 	if (memcmp(hdr.id, "TEXMIPS\0", 8) != 0 || hdr.version != TEXTURE_VERSION)
 		return NULL;
@@ -176,20 +172,25 @@ ParseTexture (const uint8_t *bytes, int sz)
 
 	return ret;
 }
+#endif
 
 
 struct texture_s *
 Dat_LoadTexture (const char *name)
 {
+	/*
 	uint8_t *bytes;
 	unsigned int sz;
+	*/
 	struct texture_s *ret = NULL;
 
+	/*
 	if ((bytes = Pak_Read(name, &sz)) != NULL)
 	{
 		ret = ParseTexture(bytes, sz);
 		bytes = Pak_Free (bytes);
 	}
+	*/
 
 	return ret;
 }

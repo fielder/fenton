@@ -5,7 +5,6 @@
 
 typedef uint16_t pixel_t;
 
-
 #define MIP_NUM_LEVELS 4
 
 struct texlevel_s

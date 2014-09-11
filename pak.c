@@ -7,6 +7,7 @@
 
 #include "pak.h"
 
+
 struct pakfile_s
 {
 	char name[56];
@@ -27,9 +28,9 @@ static struct pak_s paks = { NULL };
 
 
 static unsigned int
-getUInt (const void *ptr)
+GetUInt (const void *ptr)
 {
-	const unsigned char *bytes = ptr;
+	const char *bytes = ptr;
 	return	((unsigned int)bytes[0] << 0) | ((unsigned int)bytes[1] << 8) |
 		((unsigned int)bytes[2] << 16) | ((unsigned int)bytes[3] << 24);
 }
@@ -64,8 +65,8 @@ Pak_AddFile (const char *path)
 		return 0;
 	}
 
-	dirofs = getUInt (hdr + 4);
-	dirlen = getUInt (hdr + 8);
+	dirofs = GetUInt (hdr + 4);
+	dirlen = GetUInt (hdr + 8);
 
 	pak = malloc (sizeof(*pak) + dirlen + strlen(path) + 1);
 
@@ -88,8 +89,8 @@ Pak_AddFile (const char *path)
 		for (j = 0; j < 56 && pak->files[i].name[j] != '\0'; j++) {}
 		for (; j < 56; j++)
 			pak->files[i].name[j] = '\0';
-		pak->files[i].filepos = getUInt (&pak->files[i].filepos);
-		pak->files[i].filelen = getUInt (&pak->files[i].filelen);
+		pak->files[i].filepos = GetUInt (&pak->files[i].filepos);
+		pak->files[i].filelen = GetUInt (&pak->files[i].filelen);
 	}
 
 	return 1;
@@ -140,8 +141,7 @@ Pak_Read (const char *name, unsigned int *size)
 			{
 				if ((ret = malloc(sz + 1)) != NULL)
 				{
-					lseek (fd, 0, SEEK_SET);
-					if (read(fd, ret, sz) != sz)
+					if (lseek(fd, 0, SEEK_SET) == -1 || read(fd, ret, sz) != sz)
 					{
 						free (ret);
 						ret = NULL;
@@ -171,8 +171,7 @@ Pak_Read (const char *name, unsigned int *size)
 		if (i < pak->num_files)
 		{
 			void *dat = malloc (pf->filelen + 1);
-			lseek (pak->fd, pf->filepos, SEEK_SET);
-			if (read(pak->fd, dat, pf->filelen) != pf->filelen)
+			if (lseek(pak->fd, pf->filepos, SEEK_SET) == -1 || read(pak->fd, dat, pf->filelen) != pf->filelen)
 			{
 				free (dat);
 				return NULL;

@@ -1,21 +1,16 @@
-SDLCFLAGS = -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT
-SDLLDFLAGS = -lSDL -lpthread
+SDLCFLAGS = -I/usr/include/SDL2 -D_REENTRANT
+SDLLDFLAGS = -L/usr/lib/x86_64-linux-gnu -lSDL2
 
 CC = gcc
 CFLAGS = -Wall -O2 $(SDLCFLAGS)
-#CFLAGS = -Wall -O2 $(SDLCFLAGS) -DUSE_SEGFAULT_UNGRAB
-#CFLAGS = -Wall -g $(SDLCFLAGS)
 LDFLAGS = -lm $(SDLLDFLAGS)
 OBJDIR = obj
 TARGET = $(OBJDIR)/fenton
 
-OBJS =	$(OBJDIR)/bswap.o \
-	$(OBJDIR)/vec.o \
+OBJS =	$(OBJDIR)/vec.o \
 	$(OBJDIR)/pak.o \
 	$(OBJDIR)/appio.o \
-	$(OBJDIR)/fenton.o \
-	$(OBJDIR)/render.o \
-	$(OBJDIR)/rdata.o
+	$(OBJDIR)/fenton.o
 
 all: $(TARGET)
 
@@ -28,8 +23,8 @@ $(TARGET): $(OBJS)
 
 ########################################################################
 
-$(OBJDIR)/bswap.o: bswap.c
-	$(CC) -c $(CFLAGS) $? -o $@
+#$(OBJDIR)/bswap.o: bswap.c
+#	$(CC) -c $(CFLAGS) $? -o $@
 $(OBJDIR)/vec.o: vec.c
 	$(CC) -c $(CFLAGS) $? -o $@
 $(OBJDIR)/pak.o: pak.c
@@ -38,7 +33,7 @@ $(OBJDIR)/appio.o: appio.c
 	$(CC) -c $(CFLAGS) $? -o $@
 $(OBJDIR)/fenton.o: fenton.c
 	$(CC) -c $(CFLAGS) $? -o $@
-$(OBJDIR)/render.o: render.c
-	$(CC) -c $(CFLAGS) $? -o $@
-$(OBJDIR)/rdata.o: rdata.c
-	$(CC) -c $(CFLAGS) $? -o $@
+#$(OBJDIR)/render.o: render.c
+#	$(CC) -c $(CFLAGS) $? -o $@
+#$(OBJDIR)/rdata.o: rdata.c
+#	$(CC) -c $(CFLAGS) $? -o $@

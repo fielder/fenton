@@ -10,27 +10,27 @@ enum
 
 struct viewplane_s
 {
-	float normal[3];
-	float dist;
+	double normal[3];
+	double dist;
 };
 
 struct camera_s
 {
-	float center_x;
-	float center_y;
+	double center_x;
+	double center_y;
 
-	float fov_x; /* radians */
-	float fov_y; /* radians */
-	float dist;
+	double fov_x; /* radians */
+	double fov_y; /* radians */
+	double dist;
 
-	float pos[3];
-	float angles[3]; /* radians */
+	double pos[3];
+	double angles[3]; /* radians */
 
-	float forward[3];
-	float left[3];
-	float up[3];
+	double forward[3];
+	double left[3];
+	double up[3];
 
-	float xform[3][3]; /* world-to-camera */
+	double xform[3][3]; /* world-to-camera */
 
 	struct viewplane_s vplanes[4];
 };
