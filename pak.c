@@ -7,7 +7,6 @@
 
 #include "pak.h"
 
-
 struct pakfile_s
 {
 	char name[56];

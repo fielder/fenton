@@ -298,14 +298,9 @@ struct video_s
 {
 	int w, h, bpp;
 
-	/*
-	pixel_t *bouncebuf;
-	pixel_t **rows;
-	pixel_t red, green, blue;
-	*/
-
-	int realw, realh, realbpp;
-	int scale;
+	int bytes_pp;
+	void *buf;
+	void **rows;
 };
 
 extern struct video_s video;
@@ -318,7 +313,7 @@ extern void
 IO_Init (void);
 
 extern void
-IO_SetMode (int w, int h, int bpp, int scale);
+IO_SetMode (int w, int h, int bpp, int scale, int fullscreen);
 
 extern void
 IO_Shutdown (void);

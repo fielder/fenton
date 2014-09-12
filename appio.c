@@ -8,10 +8,12 @@
 #include "fenton.h"
 #include "appio.h"
 
-//static SDL_Surface *sdl_surf = NULL;
-
 struct video_s video;
 struct input_s input;
+
+static SDL_Window *sdl_win = NULL;
+static SDL_Renderer *sdl_render = NULL;
+static SDL_Texture *sdl_tex = NULL;
 
 
 void
@@ -33,69 +35,104 @@ IO_Init (void)
 static void
 DestroyWindow (void)
 {
-	/*
-	if (sdl_surf != NULL)
-	{
-		SDL_EnableKeyRepeat (SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
-		IO_SetGrab (0);
-		SDL_FreeSurface (sdl_surf);
-		sdl_surf = NULL;
-	}
-	*/
-
-#if 0
-	if (video.bouncebuf != NULL)
-	{
-		free (video.bouncebuf);
-		video.bouncebuf = NULL;
-	}
-
 	if (video.rows != NULL)
 	{
 		free (video.rows);
 		video.rows = NULL;
 	}
-#endif
+
+	if (video.buf != NULL)
+	{
+		free (video.buf);
+		video.buf = NULL;
+	}
+
+	if (sdl_tex != NULL)
+	{
+		SDL_DestroyTexture (sdl_tex);
+		sdl_tex = NULL;
+	}
+
+	if (sdl_render != NULL)
+	{
+		SDL_DestroyRenderer (sdl_render);
+		sdl_render = NULL;
+	}
+
+	if (sdl_win != NULL)
+	{
+		IO_SetGrab (0);
+		SDL_DestroyWindow (sdl_win);
+		sdl_win = NULL;
+	}
 }
 
 
 void
-IO_SetMode (int w, int h, int bpp, int scale)
+IO_SetMode (int w, int h, int bpp, int scale, int fullscreen)
 {
-//	Uint32 flags;
-#if 0
-	int y;
-#endif
+	int realw, realh;
+	int bytes_pp = 0;
+	Uint32 flags;
+	Uint32 format = 0;
 
-//	IO_Print ("Setting mode %dx%dx%d\n", w, h, bpp);
-//	printf ("Scaling %dx\n", scale);
+	if (bpp != 16 && bpp != 24)
+		F_Error ("invalid bpp %d", bpp);
+	if (scale < 1 || scale > 6)
+		F_Error ("invalid scale %d", scale);
+
+	F_Log ("Setting mode %dx%dx%d (scale %dx)\n", w, h, bpp, scale);
 
 	DestroyWindow ();
 
-//	flags = SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_HWPALETTE;
-#if 0
-	if ((sdl_surf = SDL_SetVideoMode(video.w * video.scale, video.h * video.scale, sizeof(pixel_t) * 8, flags)) == NULL)
+	/* window */
+	realw = w * scale;
+	realh = h * scale;
+	flags = (fullscreen) ? (SDL_WINDOW_FULLSCREEN_DESKTOP) : (0);
+	if ((sdl_win = SDL_CreateWindow(APPNAME, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, realw, realh, flags)) == NULL)
+		F_Error ("failed setting mode %dx%dx%d: %s", realw, realh, bpp, SDL_GetError());
+
+	/* renderer */
+	if ((sdl_render = SDL_CreateRenderer(sdl_win, -1, 0)) == NULL)
+		F_Error ("failed creating renderer: %s", SDL_GetError());
+
+	/* rendering texture */
+	if (bpp == 16)
 	{
-		fprintf (stderr, "ERROR: failed setting video mode\n");
-		Quit ();
+		format = SDL_PIXELFORMAT_RGB565;
+		bytes_pp = 2;
 	}
-	printf ("Set %dx%dx%d real video mode\n", sdl_surf->w, sdl_surf->h, sdl_surf->format->BytesPerPixel * 8);
-	printf ("RGB mask: 0x%x 0x%x 0x%x\n", sdl_surf->format->Rmask, sdl_surf->format->Gmask, sdl_surf->format->Bmask);
-
-	video.rows = malloc (video.h * sizeof(*video.rows));
-
-	if (video.scale == 1)
+	else if (bpp == 24)
 	{
-		for (y = 0; y < video.h; y++)
-			video.rows[y] = (pixel_t *)((uintptr_t)sdl_surf->pixels + y * sdl_surf->pitch);
+		format = SDL_PIXELFORMAT_RGB888;
+		bytes_pp = 4;
 	}
 	else
 	{
-		video.bouncebuf = malloc (video.w * video.h * sizeof(pixel_t));
-		for (y = 0; y < video.h; y++)
-			video.rows[y] = video.bouncebuf + y * video.w;
+		F_Error ("shouldn't happen");
 	}
-#endif
+	if ((sdl_tex = SDL_CreateTexture(sdl_render, format, SDL_TEXTUREACCESS_STREAMING, w, h)) == NULL)
+		F_Error ("failed creating render texture: %s", SDL_GetError());
+
+	/* our draw buffer */
+	if ((video.buf = malloc(w * h * bytes_pp)) == NULL)
+		F_Error ("failed allocating frame buffer");
+
+	/* row pointers */
+	if ((video.rows = malloc(sizeof(void *) * h)) == NULL)
+		F_Error ("failed allocating row buffer");
+
+	video.w = w;
+	video.h = h;
+	video.bpp = bpp;
+	video.bytes_pp = bytes_pp;
+
+	/* set up row pointers */
+	{
+		int y;
+		for (y = 0; y < video.h; y++)
+			video.rows[y] = (char *)video.buf + y * (video.w * bytes_pp);
+	}
 }
 
 
@@ -398,8 +435,11 @@ IO_FetchInput (void)
 				{
 					if (sdlev.type == SDL_KEYDOWN)
 					{
-						input.key.state[fk] = 1;
-						input.key.press[fk] = 1;
+						if (sdlev.key.repeat == 0)
+						{
+							input.key.state[fk] = 1;
+							input.key.press[fk] = 1;
+						}
 					}
 					else
 					{
@@ -479,14 +519,14 @@ IO_SetGrab (int grab)
 {
 	if (grab && !_mouse_grabbed)
 	{
-//		SDL_WM_GrabInput (SDL_GRAB_ON);
+		SDL_SetWindowGrab (sdl_win, SDL_TRUE);
 		SDL_ShowCursor (SDL_DISABLE);
 		_mouse_grabbed = 1;
 		_mouse_ignore_move = 1;
 	}
 	else if (!grab && _mouse_grabbed)
 	{
-//		SDL_WM_GrabInput (SDL_GRAB_OFF);
+		SDL_SetWindowGrab (sdl_win, SDL_FALSE);
 		SDL_ShowCursor (SDL_ENABLE);
 		_mouse_grabbed = 0;
 		_mouse_ignore_move = 1;
@@ -504,9 +544,9 @@ IO_ToggleGrab (void)
 void
 IO_Swap (void)
 {
-	//SDL_UpdateTexture (tex, NULL, pix, 640 * sizeof(*pix));
-	//SDL_RenderCopy (rend, tex, NULL, NULL);
-	//SDL_RenderPresent (rend);
+	SDL_UpdateTexture (sdl_tex, NULL, video.buf, video.w * video.bytes_pp);
+	SDL_RenderCopy (sdl_render, sdl_tex, NULL, NULL);
+	SDL_RenderPresent (sdl_render);
 }
 
 
@@ -528,7 +568,7 @@ main (int argc, const char **argv)
 		exit (EXIT_FAILURE);
 	}
 
-//	F_Init ();
+	F_Init ();
 
 	last = IO_MSecs ();
 	for (;;)

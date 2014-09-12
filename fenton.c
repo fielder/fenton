@@ -57,6 +57,20 @@ F_Error (const char *fmt, ...)
 
 
 void
+F_Log (const char *fmt, ...)
+{
+	char tmp[1024];
+	va_list args;
+
+	va_start (args, fmt);
+	vsnprintf (tmp, sizeof(tmp), fmt, args);
+	va_end (args);
+
+	IO_Print (tmp);
+}
+
+
+void
 F_Init (void)
 {
 	//SwapInit ();
@@ -65,6 +79,8 @@ F_Init (void)
 //		F_Error ("unable to load %s", pakpath);
 
 	IO_Init ();
+
+	IO_SetMode (640, 480, 24, 2, 0);
 
 //	R_Init ();
 }
@@ -83,6 +99,20 @@ F_RunTime (int msecs)
 
 	RunInput ();
 
+	{
+		int i;
+		for (i = 0; i < video.h; i++)
+		{
+			if (video.bpp == 16)
+			{
+				((unsigned short *)video.rows[i])[i] = 0xffff;
+			}
+			else
+			{
+				((unsigned int *)video.rows[i])[i] = 0x000000ff;
+			}
+		}
+	}
 //	R_Refresh ();
 
 	IO_Swap ();
@@ -108,13 +138,13 @@ RunInput (void)
 	if (input.key.release[FK_ESCAPE])
 		F_Quit ();
 
-#if 0
 	if (input.key.release['g'])
-		ToggleGrab ();
+		IO_ToggleGrab ();
 
-	if (input.key.release['f'])
-		printf ("%g\n", fps.rate);
+	if (input.key.press['f'])
+		F_Log ("%g\n", fps.rate);
 
+#if 0
 	r_showtex = input.key.state['\''];
 
 	if (input.key.release['c'])
