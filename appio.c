@@ -29,6 +29,8 @@ IO_Init (void)
 {
 	if (SDL_InitSubSystem(SDL_INIT_VIDEO) != 0)
 		F_Error ("video init failed: %s", SDL_GetError());
+	memset (&video, 0, sizeof(video));
+	memset (&input, 0, sizeof(input));
 }
 
 
@@ -423,6 +425,12 @@ IO_FetchInput (void)
 	memset (input.mouse.button.press, 0, sizeof(input.mouse.button.press));
 	memset (input.mouse.button.release, 0, sizeof(input.mouse.button.release));
 
+	/* SDL2 treats the wheels differently than a press/release
+	 * button; there is no separate press/release event. So we just
+	 * emulate it. */
+	input.mouse.button.state[MBUTTON_WHEEL_UP] = 0;
+	input.mouse.button.state[MBUTTON_WHEEL_DOWN] = 0;
+
 	while (SDL_PollEvent(&sdlev))
 	{
 		switch (sdlev.type)
@@ -459,8 +467,6 @@ IO_FetchInput (void)
 					case 1: b = MBUTTON_LEFT; break;
 					case 2: b = MBUTTON_MIDDLE; break;
 					case 3: b = MBUTTON_RIGHT; break;
-					case 4: b = MBUTTON_WHEEL_UP; break;
-					case 5: b = MBUTTON_WHEEL_DOWN; break;
 					default: b = -1; break;
 				}
 
@@ -481,6 +487,23 @@ IO_FetchInput (void)
 				break;
 			}
 
+			case SDL_MOUSEWHEEL:
+			{
+				/* since SDL2 wheel events have no release we emulate it all here */
+				if (sdlev.wheel.x > 0)
+				{
+					input.mouse.button.state[MBUTTON_WHEEL_UP] = 1;
+					input.mouse.button.press[MBUTTON_WHEEL_UP] = 1;
+					input.mouse.button.release[MBUTTON_WHEEL_UP] = 1;
+				}
+				else if (sdlev.wheel.x < 0)
+				{
+					input.mouse.button.state[MBUTTON_WHEEL_DOWN] = 1;
+					input.mouse.button.press[MBUTTON_WHEEL_DOWN] = 1;
+					input.mouse.button.release[MBUTTON_WHEEL_DOWN] = 1;
+				}
+			}
+
 			case SDL_MOUSEMOTION:
 			{
 				if (_mouse_grabbed)
@@ -492,6 +515,7 @@ IO_FetchInput (void)
 					if (_mouse_ignore_move == 0)
 					{
 						//FIXME: a grabbed mouse under vmware gives jacked deltas
+						//F_Log ("%d %d\n", sdlev.motion.xrel, sdlev.motion.yrel);
 						input.mouse.delta[0] = sdlev.motion.xrel;
 						input.mouse.delta[1] = sdlev.motion.yrel;
 					}
@@ -520,14 +544,14 @@ IO_SetGrab (int grab)
 	if (grab && !_mouse_grabbed)
 	{
 		SDL_SetWindowGrab (sdl_win, SDL_TRUE);
-		SDL_ShowCursor (SDL_DISABLE);
+		SDL_SetRelativeMouseMode (SDL_TRUE);
 		_mouse_grabbed = 1;
 		_mouse_ignore_move = 1;
 	}
 	else if (!grab && _mouse_grabbed)
 	{
 		SDL_SetWindowGrab (sdl_win, SDL_FALSE);
-		SDL_ShowCursor (SDL_ENABLE);
+		SDL_SetRelativeMouseMode (SDL_FALSE);
 		_mouse_grabbed = 0;
 		_mouse_ignore_move = 1;
 	}
