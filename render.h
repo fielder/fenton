@@ -8,6 +8,14 @@ enum
 	ROLL,
 };
 
+enum
+{
+	VPLANE_LEFT,
+	VPLANE_RIGHT,
+	VPLANE_TOP,
+	VPLANE_BOTTOM,
+};
+
 struct viewplane_s
 {
 	double normal[3];
@@ -42,6 +50,9 @@ R_Init (void);
 
 extern void
 R_Shutdown (void);
+
+extern void
+R_CameraChanged (int w, int h);
 
 extern void
 R_CalcViewXForm (void);

@@ -7,9 +7,11 @@ LDFLAGS = -lm $(SDLLDFLAGS)
 OBJDIR = obj
 TARGET = $(OBJDIR)/fenton
 
-OBJS =	$(OBJDIR)/vec.o \
+OBJS =	$(OBJDIR)/bdat.o \
+	$(OBJDIR)/vec.o \
 	$(OBJDIR)/pak.o \
 	$(OBJDIR)/appio.o \
+	$(OBJDIR)/render.o \
 	$(OBJDIR)/fenton.o
 
 all: $(TARGET)
@@ -23,8 +25,8 @@ $(TARGET): $(OBJS)
 
 ########################################################################
 
-#$(OBJDIR)/bswap.o: bswap.c
-#	$(CC) -c $(CFLAGS) $? -o $@
+$(OBJDIR)/bdat.o: bdat.c
+	$(CC) -c $(CFLAGS) $? -o $@
 $(OBJDIR)/vec.o: vec.c
 	$(CC) -c $(CFLAGS) $? -o $@
 $(OBJDIR)/pak.o: pak.c
@@ -33,7 +35,7 @@ $(OBJDIR)/appio.o: appio.c
 	$(CC) -c $(CFLAGS) $? -o $@
 $(OBJDIR)/fenton.o: fenton.c
 	$(CC) -c $(CFLAGS) $? -o $@
-#$(OBJDIR)/render.o: render.c
-#	$(CC) -c $(CFLAGS) $? -o $@
+$(OBJDIR)/render.o: render.c
+	$(CC) -c $(CFLAGS) $? -o $@
 #$(OBJDIR)/rdata.o: rdata.c
 #	$(CC) -c $(CFLAGS) $? -o $@

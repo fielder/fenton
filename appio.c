@@ -111,7 +111,7 @@ IO_SetMode (int w, int h, int bpp, int scale, int fullscreen)
 	}
 	else
 	{
-		F_Error ("shouldn't happen");
+		F_Error ("shouldn't happen, invalid bpp %d", bpp);
 	}
 	if ((sdl_tex = SDL_CreateTexture(sdl_render, format, SDL_TEXTUREACCESS_STREAMING, w, h)) == NULL)
 		F_Error ("failed creating render texture: %s", SDL_GetError());
@@ -489,7 +489,7 @@ IO_FetchInput (void)
 
 			case SDL_MOUSEWHEEL:
 			{
-				/* since SDL2 wheel events have no release we emulate it all here */
+				/* since SDL2 wheel events have no release we emulate it */
 				if (sdlev.wheel.x > 0)
 				{
 					input.mouse.button.state[MBUTTON_WHEEL_UP] = 1;
@@ -512,10 +512,14 @@ IO_FetchInput (void)
 					 * delta we get can be HUGE, so ignore
 					 * the first mouse movement after grabbing
 					 * input */
+					/* Under VMware you must enable the 'optimization' for
+					 * games setting to have mouse input work properly. This
+					 * setting seems to disable the host controlling the
+					 * mouse entirely and allowing the guest OS to own the
+					 * cursor.
+					 */
 					if (_mouse_ignore_move == 0)
 					{
-						//FIXME: a grabbed mouse under vmware gives jacked deltas
-						//F_Log ("%d %d\n", sdlev.motion.xrel, sdlev.motion.yrel);
 						input.mouse.delta[0] = sdlev.motion.xrel;
 						input.mouse.delta[1] = sdlev.motion.yrel;
 					}

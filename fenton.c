@@ -1,16 +1,31 @@
-#include <stdarg.h>
 #include <stdio.h>
+#include <stdarg.h>
 
-//#include "bswap.h"
-//#include "pak.h"
-//#include "render.h"
+#include "bdat.h"
+#include "pak.h"
+#include "vec.h"
+#include "render.h"
 #include "appio.h"
 #include "fenton.h"
 
+static const double flyspeed = 64.0;
+
+#if 1
+/* wasd-style on a kinesis advantage w/ dvorak */
+static const int bind_forward = '.';
+static const int bind_back = 'e';
+static const int bind_left = 'o';
+static const int bind_right = 'u';
+#else
+/* qwerty-style using arrows */
+static const int bind_forward = FK_UP;
+static const int bind_back = FK_DOWN;
+static const int bind_left = FK_LEFT;
+static const int bind_right = FK_RIGHT;
+#endif
+
 double frametime;
 unsigned int elapsedtime_ms = 0;
-
-//static const char *pakpath = "doom.pak";
 
 static struct
 {
@@ -23,8 +38,8 @@ static struct
 void
 F_Quit (void)
 {
-	//R_Shutdown ();
-	//Pak_CloseAll ();
+	R_Shutdown ();
+	Pak_CloseAll ();
 	IO_Shutdown ();
 	IO_Terminate ();
 }
@@ -73,16 +88,22 @@ F_Log (const char *fmt, ...)
 void
 F_Init (void)
 {
-	//SwapInit ();
+	int w, h, bpp, scale, full;
 
-//	if (!Pak_AddFile(pakpath))
-//		F_Error ("unable to load %s", pakpath);
+	BDatInit ();
 
 	IO_Init ();
 
-	IO_SetMode (640, 480, 24, 2, 0);
+	w = 320;
+	h = 240;
+	bpp = 24;
+	scale = 3;
+	full = 0;
+	IO_SetMode (w, h, bpp, scale, full);
 
-//	R_Init ();
+	R_Init ();
+
+	R_CameraChanged (w, h);
 }
 
 
@@ -99,21 +120,7 @@ F_RunTime (int msecs)
 
 	RunInput ();
 
-	{
-		int i;
-		for (i = 0; i < video.h; i++)
-		{
-			if (video.bpp == 16)
-			{
-				((unsigned short *)video.rows[i])[i] = 0xffff;
-			}
-			else
-			{
-				((unsigned int *)video.rows[i])[i] = 0x000000ff;
-			}
-		}
-	}
-//	R_Refresh ();
+	R_Refresh ();
 
 	IO_Swap ();
 
@@ -133,6 +140,58 @@ F_RunTime (int msecs)
 
 
 static void
+CameraMovement (void)
+{
+	/* camera angles */
+
+	camera.angles[YAW] += -input.mouse.delta[0] * (camera.fov_x / video.w);
+	while (camera.angles[YAW] >= 2.0 * M_PI)
+		camera.angles[YAW] -= 2.0 * M_PI;
+	while (camera.angles[YAW] < 0.0)
+		camera.angles[YAW] += 2.0 * M_PI;
+	camera.angles[PITCH] += input.mouse.delta[1] * (camera.fov_y / video.h);
+	if (camera.angles[PITCH] > M_PI / 2.0)
+		camera.angles[PITCH] = M_PI / 2.0;
+	if (camera.angles[PITCH] < -M_PI / 2.0)
+		camera.angles[PITCH] = -M_PI / 2.0;
+
+	/* view vectors */
+
+	R_CalcViewXForm ();
+
+	/* movement */
+
+	int left, forward, up;
+	double speed = flyspeed;
+	double v[3];
+
+	if (input.key.state[FK_LSHIFT] || input.key.state[FK_RSHIFT])
+		speed *= 1.5;
+
+	left = 0;
+	left += input.key.state[bind_left] ? 1 : 0;
+	left -= input.key.state[bind_right] ? 1 : 0;
+	Vec_Copy (camera.left, v);
+	Vec_Scale (v, left * speed * frametime);
+	Vec_Add (camera.pos, v, camera.pos);
+
+	forward = 0;
+	forward += input.key.state[bind_forward] ? 1 : 0;
+	forward -= input.key.state[bind_back] ? 1 : 0;
+	Vec_Copy (camera.forward, v);
+	Vec_Scale (v, forward * speed * frametime);
+	Vec_Add (camera.pos, v, camera.pos);
+
+	up = 0;
+	up += input.mouse.button.state[MBUTTON_RIGHT] ? 1 : 0;
+	up -= input.mouse.button.state[MBUTTON_MIDDLE] ? 1 : 0;
+	Vec_Copy (camera.up, v);
+	Vec_Scale (v, up * speed * frametime);
+	Vec_Add (camera.pos, v, camera.pos);
+}
+
+
+static void
 RunInput (void)
 {
 	if (input.key.release[FK_ESCAPE])
@@ -144,70 +203,35 @@ RunInput (void)
 	if (input.key.press['f'])
 		F_Log ("%g\n", fps.rate);
 
-#if 0
-	r_showtex = input.key.state['\''];
-
-	if (input.key.release['c'])
+	if (input.key.release['p'])
 	{
-		if (input.key.state[SDLK_LSHIFT] || input.key.state[SDLK_RSHIFT])
+		if (input.key.state[FK_LSHIFT] || input.key.state[FK_RSHIFT])
 		{
 			Vec_Clear (camera.pos);
 			Vec_Clear (camera.angles);
 		}
 		else
-			PrintCamera ();
+		{
+			F_Log ("(%g %g %g)\n", camera.pos[0], camera.pos[1], camera.pos[2]);
+			F_Log ("dist: %g\n", camera.dist);
+			F_Log ("angles: %g %g %g\n", camera.angles[0], camera.angles[1], camera.angles[2]);
+			F_Log ("left: (%g %g %g)\n", camera.left[0], camera.left[1], camera.left[2]);
+			F_Log ("up: (%g %g %g)\n", camera.up[0], camera.up[1], camera.up[2]);
+			F_Log ("forward: (%g %g %g)\n", camera.forward[0], camera.forward[1], camera.forward[2]);
+			F_Log ("\n");
+		}
 	}
-
-	if (input.key.release['d'])
-		r_debugframe = 1;
 
 	if (input.key.release['x'])
 	{
 		Vec_Clear (camera.pos);
 		Vec_Clear (camera.angles);
-		if (input.key.state[SDLK_LSHIFT] || input.key.state[SDLK_RSHIFT])
+		if (input.key.state[FK_LSHIFT] || input.key.state[FK_RSHIFT])
 		{
-			r_debugframe = 1;
-
-			/* causes just a tiny chip of the distant poly
-			 * to be clipped into the view, but does not
-			 * cross any pixel centers */
-			camera.pos[0] = -115.205;
-			camera.pos[1] = 86.2427;
-			camera.pos[2] = 18.0858;
-			camera.angles[0] = 0.836552;
-			camera.angles[1] = 0.83939;
-			camera.angles[2] = 0;
-
-			/* camera is so close to the poly that the clip
-			 * epsilon is many pixels wide, rejecting edges
-			 * on the back-face of a vplane */
-			/*
-			camera.pos[0] = 94.8478;
-			camera.pos[1] = 0.0;
-			camera.pos[2] = 510.809;
-			*/
-
-			/*
-			camera.pos[0] = 94.8478;
-			camera.pos[1] = 0.0;
-			camera.pos[2] = 507.16;
-			*/
-
-			/*
-			camera.pos[0] = 96.3198;
-			camera.pos[1] = 0.0;
-			camera.pos[2] = 511.767;
-			*/
-		}
-		else
-		{
-			camera.pos[0] = 94.8478012;
-			camera.pos[1] = 0.0;
-			camera.pos[2] = 507.256012 - 20;
+			/* debug camera position */
+			//...
 		}
 	}
 
 	CameraMovement ();
-#endif
 }
