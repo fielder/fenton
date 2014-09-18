@@ -74,7 +74,7 @@ Vec_Normalize (double v[3])
 {
 	double len;
 
-	len = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+	len = sqrt (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
 	if (len == 0.0)
 	{
 		v[0] = 0.0;
@@ -93,7 +93,7 @@ Vec_Normalize (double v[3])
 double
 Vec_Length (const double v[3])
 {
-	return sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+	return sqrt (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
 }
 
 
