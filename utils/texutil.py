@@ -84,26 +84,26 @@ def loadFromWad(w):
 
     wadfile = w
 
-    loadPalettes()
-    loadPNAMES()
-    loadPatches()
-    loadTextureList(1)
-    loadTextureList(2)
-    loadTextureDefs()
+    _loadPalettes()
+    _loadPNAMES()
+    _loadPatches()
+    _loadTextureList(1)
+    _loadTextureList(2)
+    _loadTextureDefs()
 
 
-def loadPalettes():
+def _loadPalettes():
     global playpal
     global palettes
 
     playpal = wadfile.readLump("PLAYPAL")
     palettes = []
     for rawpal in wad.iterChopBytes(playpal, 768):
-        pal = { i: rawpal[i * 3: i * 3 + 3] for i in range(256) }
+        pal = [rawpal[i * 3: i * 3 + 3] for i in range(256)]
         palettes.append(pal)
 
 
-def loadPNAMES():
+def _loadPNAMES():
     global pnames
 
     raw = wadfile.readLump("PNAMES")
@@ -114,7 +114,7 @@ def loadPNAMES():
         pnames.append(wad.wadBytesToString(name8))
 
 
-def loadTextureList(texlistnum):
+def _loadTextureList(texlistnum):
     global texturelists
 
     if texturelists is None:
@@ -135,16 +135,16 @@ def loadTextureList(texlistnum):
     texturelists[texlistname] = tex_name_to_fileofs
 
 
-def loadTextureDefs():
+def _loadTextureDefs():
     global texturedefs
 
     texturedefs = []
     for texlist in texturelists.values():
         for texdef_offset in texlist.values():
-            texturedefs.append(getTextureDef(texdef_offset))
+            texturedefs.append(_getTextureDef(texdef_offset))
 
 
-def getTextureDef(fileofs):
+def _getTextureDef(fileofs):
     name = wad.wadBytesToString(wadfile.readBytes(fileofs, 8))
     # bytes 8-11 are unused
     width, = struct.unpack("<h", wadfile.readBytes(fileofs + 12, 2))
@@ -179,7 +179,7 @@ def findTextureDef(name):
     raise LookupError("no texture def \"%s\"" % name)
 
 
-def loadPatches():
+def _loadPatches():
     global patches
 
     patches = {}

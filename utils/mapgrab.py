@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import sys
 import os
@@ -10,10 +10,16 @@ import texutil
 
 PALNUM = 0
 
-_maplumps = ["THINGS", "LINEDEFS", "SIDEDEFS", \
-             "VERTEXES", "SEGS", "SSECTORS", \
-             "NODES", "SECTORS", "REJECT", \
-             "BLOCKMAP"]
+_maplumps = [   "THINGS", \
+                "LINEDEFS", \
+                "SIDEDEFS", \
+                "VERTEXES", \
+                "SEGS", \
+                "SSECTORS", \
+                "NODES", \
+                "SECTORS", \
+                "REJECT", \
+                "BLOCKMAP" ]
 
 THINGS_FILE = "THINGS%stxt" % os.path.extsep
 VERTEXES_FILE = "VERTEXES%stxt" % os.path.extsep
@@ -22,7 +28,7 @@ SIDEDEFS_FILE = "SIDEDEFS%stxt" % os.path.extsep
 SECTORS_FILE = "SECTORS%stxt" % os.path.extsep
 
 
-def _findMapLumps(w, mapname):
+def _iterLumpsForMap(w, mapname):
     idx = 0
     while idx < len(w.lumps):
         if w.lumps[idx].name == mapname:
@@ -43,7 +49,7 @@ def _dumpTHINGS(destdir, raw):
     path = os.path.join(destdir, THINGS_FILE)
     with open(path, "wt") as fp:
         fp.write("idx x y angle type options\n")
-        for idx, traw in enumerate(wad.chopBytes(raw, 10)):
+        for idx, traw in enumerate(wad.iterChopBytes(raw, 10)):
             x, y, angle, type_, options = struct.unpack("<hhhhh", traw)
             fp.write("%d %d %d %d %d 0x%x\n" % (idx, x, y, angle, type_, options))
 
@@ -52,7 +58,7 @@ def _dumpVERTEXES(destdir, raw):
     path = os.path.join(destdir, VERTEXES_FILE)
     with open(path, "wt") as fp:
         fp.write("idx x y\n")
-        for idx, vraw in enumerate(wad.chopBytes(raw, 4)):
+        for idx, vraw in enumerate(wad.iterChopBytes(raw, 4)):
             x, y = struct.unpack("<hh", vraw)
             fp.write("%d %d %d\n" % (idx, x, y))
 
@@ -61,7 +67,7 @@ def _dumpLINEDEFS(destdir, raw):
     path = os.path.join(destdir, LINEDEFS_FILE)
     with open(path, "wt") as fp:
         fp.write("idx v1 v2 flags special tag side1 side2\n")
-        for idx, lraw in enumerate(wad.chopBytes(raw, 14)):
+        for idx, lraw in enumerate(wad.iterChopBytes(raw, 14)):
             v1, v2, flags, special, tag, sidenum0, sidenum1 = struct.unpack("<hhhhhhh", lraw)
             fp.write("%d %d %d 0x%x %d %d %d %d\n" % (idx, v1, v2, flags, special, tag, sidenum0, sidenum1))
 
@@ -70,18 +76,18 @@ def _dumpSIDEDEFS(destdir, raw):
     path = os.path.join(destdir, SIDEDEFS_FILE)
     with open(path, "wt") as fp:
         fp.write("idx x_shift y_shift uppertexture lowertexture middletexture sector\n")
-        for idx, sraw in enumerate(wad.chopBytes(raw, 30)):
+        for idx, sraw in enumerate(wad.iterChopBytes(raw, 30)):
             xoff, yoff, toptex, bottomtex, middletex, sector = struct.unpack("<hh8s8s8sh", sraw)
-            fp.write("%d %d %d \"%s\" \"%s\" \"%s\" %d\n" % (idx, xoff, yoff, wad.pythonifyString(toptex), wad.pythonifyString(bottomtex), wad.pythonifyString(middletex), sector))
+            fp.write("%d %d %d \"%s\" \"%s\" \"%s\" %d\n" % (idx, xoff, yoff, wad.wadBytesToString(toptex), wad.wadBytesToString(bottomtex), wad.wadBytesToString(middletex), sector))
 
 
 def _dumpSECTORS(destdir, raw):
     path = os.path.join(destdir, SECTORS_FILE)
     with open(path, "wt") as fp:
         fp.write("idx floor ceiling floortexture ceilingtexture light special tag\n")
-        for idx, sraw in enumerate(wad.chopBytes(raw, 26)):
+        for idx, sraw in enumerate(wad.iterChopBytes(raw, 26)):
             f_height, c_height, f_tex, c_tex, light, special, tag = struct.unpack("<hh8s8shhh", sraw)
-            fp.write("%d %d %d \"%s\" \"%s\" %d %d %d\n" % (idx, f_height, c_height, wad.pythonifyString(f_tex), wad.pythonifyString(c_tex), light, special, tag))
+            fp.write("%d %d %d \"%s\" \"%s\" %d %d %d\n" % (idx, f_height, c_height, wad.wadBytesToString(f_tex), wad.wadBytesToString(c_tex), light, special, tag))
 
 
 def _mkdir(path):
@@ -97,11 +103,11 @@ def _dumpTextures(destdir, sidedefs_raw):
 
     all_used = set()
 
-    for idx, sraw in enumerate(wad.chopBytes(sidedefs_raw, 30)):
+    for idx, sraw in enumerate(wad.iterChopBytes(sidedefs_raw, 30)):
         xoff, yoff, toptex, bottomtex, middletex, sector = struct.unpack("<hh8s8s8sh", sraw)
-        toptex = wad.pythonifyString(toptex)
-        bottomtex = wad.pythonifyString(bottomtex)
-        middletex = wad.pythonifyString(middletex)
+        toptex = wad.wadBytesToString(toptex)
+        bottomtex = wad.wadBytesToString(bottomtex)
+        middletex = wad.wadBytesToString(middletex)
 
         all_used.add(toptex)
         all_used.add(bottomtex)
@@ -118,15 +124,15 @@ def _dumpTextures(destdir, sidedefs_raw):
 
         rows = []
         maskrows = []
-        for y in xrange(tex.height):
-            rows.append( "".join( (col[y] for col in tex.columns) ) )
-            maskrows.append( "".join( (col[y] for col in tex.masks) ) )
+        for y in range(tex.height):
+            rows.append( bytes(col[y] for col in tex.columns) )
+            maskrows.append( bytes(col[y] for col in tex.masks) )
 
-        allpixels = "".join(rows)
-        rgbs = "".join( (texutil.palettes[PALNUM][pix] for pix in allpixels) )
+        allpixels = b"".join(rows)
+        rgbs = b"".join( (texutil.palettes[PALNUM][pix] for pix in allpixels) )
 
-        allmask = "".join(maskrows)
-        if "\x00" not in allmask:
+        allmask = b"".join(maskrows)
+        if b"\x00" not in allmask:
             # all pixels opaque; no mask
             mask = None
         else:
@@ -146,10 +152,10 @@ def _dumpFlats(destdir, sectors_raw):
 
     all_used = set()
 
-    for idx, sraw in enumerate(wad.chopBytes(sectors_raw, 26)):
+    for idx, sraw in enumerate(wad.iterChopBytes(sectors_raw, 26)):
         f_height, c_height, f_tex, c_tex, light, special, tag = struct.unpack("<hh8s8shhh", sraw)
-        f_tex = wad.pythonifyString(f_tex)
-        c_tex = wad.pythonifyString(c_tex)
+        f_tex = wad.wadBytesToString(f_tex)
+        c_tex = wad.wadBytesToString(c_tex)
 
         all_used.add(f_tex)
         all_used.add(c_tex)
@@ -161,11 +167,11 @@ def _dumpFlats(destdir, sectors_raw):
             # Heretic's sky flat doesn't have 4096 bytes. It's used as a
             # place-holder anyways so it doesn't matter what we fill it
             # with.
-            pixels = "\xfb" * (64 * 64)
+            pixels = b"\xfb" * (64 * 64)
         else:
             pixels = texutil.getFlat(name)
 
-        rgbs = "".join( (texutil.palettes[PALNUM][pix] for pix in pixels) )
+        rgbs = b"".join( (texutil.palettes[PALNUM][pix] for pix in pixels) )
 
         with open(outpath, "wb") as fp:
             fp.write(struct.pack("<I", 64))
@@ -197,7 +203,7 @@ def _dumpMap(w, mapname, lumps):
 
 def main(argv):
     if len(argv) < 3:
-        print "usage: %s <wad> mapname" % argv[0]
+        print("usage: %s <wad> mapname" % argv[0])
         sys.exit(0)
 
     w = wad.Wad(argv[1])
@@ -206,7 +212,7 @@ def main(argv):
 
     for mapname in argv[2:]:
         mapname = mapname.upper()
-        _dumpMap(w, mapname, _findMapLumps(w, mapname))
+        _dumpMap(w, mapname, _iterLumpsForMap(w, mapname))
 
     texutil.clear()
 

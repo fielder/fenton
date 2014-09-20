@@ -91,8 +91,8 @@ class WadLump(object):
         self.name = ""
 
     @classmethod
-    def newFromBytes(self, raw, offs):
-        ret = WadLump()
+    def newFromBytes(cls, raw, offs):
+        ret = cls()
         ret.filepos, = struct.unpack("<i", raw[offs + 0:offs + 4])
         ret.size, = struct.unpack("<i", raw[offs + 4:offs + 8])
         ret.name = wadBytesToString(raw[offs + 8:offs + 16])
