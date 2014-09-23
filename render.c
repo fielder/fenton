@@ -37,8 +37,6 @@ R_CameraChanged (int w, int h)
 
 	camera.dist = (w / 2.0) / tan(camera.fov_x / 2.0);
 	camera.fov_y = 2.0 * atan((h / 2.0) / camera.dist);
-
-	R_CalcViewXForm ();
 }
 
 

@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#include "bdat.h"
 #include "pak.h"
 #include "vec.h"
 #include "render.h"
@@ -89,8 +88,6 @@ void
 F_Init (void)
 {
 	int w, h, bpp, scale, full;
-
-	BDatInit ();
 
 	IO_Init ();
 
