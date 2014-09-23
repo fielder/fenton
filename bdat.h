@@ -2,21 +2,30 @@
 #define __BDAT_H__
 
 extern int
-BDatInit (void); /* returns 0 on little, 1 on big-endianed hosts */
-
-extern int
 GetByte (void *bytes);
 
 extern int
 GetShort (void *bytes);
 
 extern int
+GetBigShort (void *bytes);
+
+extern int
 GetInt (void *bytes);
+
+extern int
+GetBigInt (void *bytes);
 
 extern float
 GetFloat (void *bytes);
 
+extern float
+GetBigFloat (void *bytes);
+
 extern double
 GetDouble (void *bytes);
+
+extern double
+GetBigDouble (void *bytes);
 
 #endif /* __BDAT_H__ */
