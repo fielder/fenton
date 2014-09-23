@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import sys
 import os
@@ -38,8 +38,8 @@ class Pic(object):
         g = 0
         b = 0
 
-        for cy in xrange(chunk_height):
-            for cx in xrange(chunk_width):
+        for cy in range(chunk_height):
+            for cx in range(chunk_width):
                 p = self.pixel(x + cx, y + cy)
                 r += p.r
                 g += p.g
@@ -58,8 +58,8 @@ class Pic(object):
 
         tot = 0.0
 
-        for cy in xrange(chunk_height):
-            for cx in xrange(chunk_width):
+        for cy in range(chunk_height):
+            for cx in range(chunk_width):
                 tot += self.maskval(x + cx, y + cy)
 
         return tot / (chunk_width * chunk_height)
@@ -84,7 +84,7 @@ class Pic(object):
             irun = [int(round(val)) for val in run]
 
             val = 0x0
-            for bit in xrange(8):
+            for bit in range(8):
                 val |= irun[bit] << bit
 
             bytes_.append(val)
@@ -122,20 +122,20 @@ def picScaledUpToPow2(pic):
     FRACBITS = 20
 
     xstep = pic.width * (1 << FRACBITS) / new_width
-    xmap = [(idx * xstep) >> FRACBITS for idx in xrange(new_width)]
+    xmap = [(idx * xstep) >> FRACBITS for idx in range(new_width)]
 
     ystep = pic.height * (1 << FRACBITS) / new_height
-    ymap = [(idx * ystep) >> FRACBITS for idx in xrange(new_height)]
+    ymap = [(idx * ystep) >> FRACBITS for idx in range(new_height)]
 
     new_pixels = [0] * (new_width * new_height)
-    for y in xrange(new_height):
-        for x in xrange(new_width):
+    for y in range(new_height):
+        for x in range(new_width):
             new_pixels[y * new_width + x] = pic.pixels[ymap[y] * pic.width + xmap[x]]
 
     if pic.mask:
         new_mask = [0] * (new_width * new_height)
-        for y in xrange(new_height):
-            for x in xrange(new_width):
+        for y in range(new_height):
+            for x in range(new_width):
                 new_mask[y * new_width + x] = pic.mask[ymap[y] * pic.width + xmap[x]]
 
     ret = Pic()
@@ -157,14 +157,16 @@ def parseRGB(filedat):
         raise ValueError("invalid size %dx%d" % (width, height))
 
     if len(filedat) != 8 + (width * height * 3):
+        # there are extra bytes after the pixel data, should be the
+        # alpha mask
         if len(filedat) != 8 + (width * height * 3) + (width * height):
             raise ValueError("invalid file size %d" % len(filedat))
 
     pixelstart = 8
     pixelend = pixelstart + width * height * 3
     pixelsraw = filedat[pixelstart:pixelend]
-    pixels = [RGB(ord(pixelsraw[idx + 0]), ord(pixelsraw[idx + 1]), ord(pixelsraw[idx + 2])) for \
-              idx in xrange(0, width * height * 3, 3)]
+    pixels = [ RGB(pixelsraw[idx + 0], pixelsraw[idx + 1], pixelsraw[idx + 2]) for \
+               idx in range(0, width * height * 3, 3) ]
 
     if pixelend < len(filedat):
         maskstart = pixelend
@@ -186,12 +188,9 @@ def parseRGB(filedat):
 def loadRGB(path):
     with open(path, "rb") as fp:
         try:
-            fp.seek(0, 2)
-            filesz = fp.tell()
-            fp.seek(0)
             return parseRGB(fp.read())
         except Exception as e:
-            raise type(e)(e.message + "; error while reading \"%s\"" % path)
+            raise type(e)(str(e) + "; error while reading \"%s\"" % path)
 
 
 def levelReduced(pic, new_width, new_height):
@@ -213,9 +212,9 @@ def levelReduced(pic, new_width, new_height):
     chunk_total = chunk_width * chunk_height
 
     oldy = 0
-    for y in xrange(new_height):
+    for y in range(new_height):
         oldx = 0
-        for x in xrange(new_width):
+        for x in range(new_width):
             new_pixels.append(pic.chunkColor(oldx, oldy, chunk_width, chunk_height))
             oldx += chunk_width
         oldy += chunk_height
@@ -224,9 +223,9 @@ def levelReduced(pic, new_width, new_height):
         new_mask = []
 
         oldy = 0
-        for y in xrange(new_height):
+        for y in range(new_height):
             oldx = 0
-            for x in xrange(new_width):
+            for x in range(new_width):
                 new_mask.append(pic.chunkOpacity(oldx, oldy, chunk_width, chunk_height))
                 oldx += chunk_width
             oldy += chunk_height
@@ -280,8 +279,11 @@ def convertRGB(path):
 
     pic = loadRGB(path)
 
+#FIXME
+    return ########################################################################
+
     levels = [picScaledUpToPow2(pic)]
-    for i in xrange(1, OUT_NUMLEVELS):
+    for i in range(1, OUT_NUMLEVELS):
         if 1 in (levels[-1].width, levels[-1].height):
             # can't reduce anymore; done
             break
@@ -296,8 +298,8 @@ def convertRGB(path):
 
 def main(argv):
     if len(argv) < 2:
-        print "Convert .rgb images to mip-mapped texture images"
-        print "usage: %s <rgb1> ..." % argv[0]
+        print("Convert .rgb images to mip-mapped texture images")
+        print("usage: %s <rgb1> ..." % argv[0])
         sys.exit(0)
 
     for path in argv[1:]:

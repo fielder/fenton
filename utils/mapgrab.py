@@ -177,6 +177,7 @@ def _dumpFlats(destdir, sectors_raw):
             fp.write(struct.pack("<I", 64))
             fp.write(struct.pack("<I", 64))
             fp.write(rgbs)
+            # no alpha in flats so no alpha mask written
 
 
 def _dumpMap(w, mapname, lumps):
