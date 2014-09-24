@@ -45,9 +45,9 @@ class Pic(object):
                 g += p.g
                 b += p.b
 
-        r /= (chunk_width * chunk_height)
-        g /= (chunk_width * chunk_height)
-        b /= (chunk_width * chunk_height)
+        r //= (chunk_width * chunk_height)
+        g //= (chunk_width * chunk_height)
+        b //= (chunk_width * chunk_height)
 
         return RGB(r, g, b)
 
@@ -71,7 +71,7 @@ class Pic(object):
         if not self.mask:
             raise Exception("no mask")
 
-        bytes_needed = (len(self.mask) + 7) / 8
+        bytes_needed = (len(self.mask) + 7) // 8
         bytes_ = []
 
         idx = 0
@@ -81,6 +81,7 @@ class Pic(object):
 
             # convert float mask pixel translucency values to ints
             # for opacity values < 0.5, consider fully transparent
+#FIXME: python3 changed rounding rules
             irun = [int(round(val)) for val in run]
 
             val = 0x0
@@ -172,7 +173,7 @@ def parseRGB(filedat):
         maskstart = pixelend
         maskend = maskstart + width * height
         maskraw = filedat[maskstart:maskend]
-        mask = [float(mval != "\x00") for mval in maskraw]
+        mask = [float(mval != 0) for mval in maskraw]
     else:
         mask = None
 
