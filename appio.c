@@ -11,6 +11,7 @@
 struct video_s video;
 struct input_s input;
 
+int sdl_vid_inited = 0;
 static SDL_Window *sdl_win = NULL;
 static SDL_Renderer *sdl_render = NULL;
 static SDL_Texture *sdl_tex = NULL;
@@ -29,6 +30,8 @@ IO_Init (void)
 {
 	if (SDL_InitSubSystem(SDL_INIT_VIDEO) != 0)
 		F_Error ("video init failed: %s", SDL_GetError());
+	sdl_vid_inited = 1;
+
 	memset (&video, 0, sizeof(video));
 	memset (&input, 0, sizeof(input));
 }
@@ -141,9 +144,13 @@ IO_SetMode (int w, int h, int bpp, int scale, int fullscreen)
 void
 IO_Shutdown (void)
 {
-	DestroyWindow ();
+	if (sdl_vid_inited)
+	{
+		DestroyWindow ();
 
-	SDL_QuitSubSystem (SDL_INIT_VIDEO);
+		SDL_QuitSubSystem (SDL_INIT_VIDEO);
+		sdl_vid_inited = 0;
+	}
 }
 
 

@@ -51,13 +51,6 @@ F_Error (const char *fmt, ...)
 	va_list args;
 	static int recursive = 0;
 
-	if (recursive)
-	{
-		IO_Print ("\nERROR: recursive errors\n");
-		IO_Terminate ();
-	}
-	recursive = 1;
-
 	va_start (args, fmt);
 	vsnprintf (tmp, sizeof(tmp), fmt, args);
 	va_end (args);
@@ -66,7 +59,16 @@ F_Error (const char *fmt, ...)
 	IO_Print (tmp);
 	IO_Print ("\n");
 
-	F_Quit ();
+	if (recursive)
+	{
+		IO_Print ("\nERROR: recursive errors\n");
+		IO_Terminate ();
+	}
+	else
+	{
+		recursive = 1;
+		F_Quit ();
+	}
 }
 
 
