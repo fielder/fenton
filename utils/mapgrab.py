@@ -136,7 +136,9 @@ def _dumpTextures(destdir, sidedefs_raw):
             # all pixels opaque; no mask
             mask = None
         else:
-            mask = allmask
+            # transparent pixels stay 0
+            # opaque pixels have alpha of 255
+            mask = bytes( (m * 0xff for m in allmask) )
 
         with open(outpath, "wb") as fp:
             fp.write(struct.pack("<I", tex.width))

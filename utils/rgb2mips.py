@@ -7,7 +7,7 @@ import collections
 
 RGB = collections.namedtuple("RGB", "r g b")
 
-OUT_VERSION = 1
+OUT_VERSION = 2
 OUT_NUMLEVELS = 4
 
 
@@ -65,8 +65,10 @@ class Pic(object):
         return tot / (chunk_width * chunk_height)
 
     def pixelsAsBytes(self):
-        return "".join( (rgbBytes(rgb) for rgb in self.pixels) )
+        return b"".join( (bytes((rgb.r, rgb.g, rgb.b)) for rgb in self.pixels) )
 
+#FIXME
+#TODO: 
     def maskAsBytes(self):
         if not self.mask:
             raise Exception("no mask")
@@ -105,10 +107,6 @@ def powUp(x):
     return x + 1
 
 
-def rgbBytes(rgb):
-    return chr(rgb.r) + chr(rgb.g) + chr(rgb.b)
-
-
 def picScaledUpToPow2(pic):
     new_width = powUp(pic.width)
     new_height = powUp(pic.height)
@@ -122,10 +120,10 @@ def picScaledUpToPow2(pic):
 
     FRACBITS = 20
 
-    xstep = pic.width * (1 << FRACBITS) / new_width
+    xstep = pic.width * (1 << FRACBITS) // new_width
     xmap = [(idx * xstep) >> FRACBITS for idx in range(new_width)]
 
-    ystep = pic.height * (1 << FRACBITS) / new_height
+    ystep = pic.height * (1 << FRACBITS) // new_height
     ymap = [(idx * ystep) >> FRACBITS for idx in range(new_height)]
 
     new_pixels = [0] * (new_width * new_height)
@@ -134,7 +132,7 @@ def picScaledUpToPow2(pic):
             new_pixels[y * new_width + x] = pic.pixels[ymap[y] * pic.width + xmap[x]]
 
     if pic.mask:
-        new_mask = [0] * (new_width * new_height)
+        new_mask = [0.0] * (new_width * new_height)
         for y in range(new_height):
             for x in range(new_width):
                 new_mask[y * new_width + x] = pic.mask[ymap[y] * pic.width + xmap[x]]
@@ -142,8 +140,11 @@ def picScaledUpToPow2(pic):
     ret = Pic()
     ret.width = new_width
     ret.height = new_height
-    ret.pixels = new_pixels
-    ret.mask = new_mask
+    ret.pixels = tuple(new_pixels)
+    if new_mask:
+        ret.mask = tuple(new_mask)
+    else:
+        ret.mask = None
 
     return ret
 
@@ -173,7 +174,7 @@ def parseRGB(filedat):
         maskstart = pixelend
         maskend = maskstart + width * height
         maskraw = filedat[maskstart:maskend]
-        mask = [float(mval != 0) for mval in maskraw]
+        mask = [mval / 255.0 for mval in maskraw]
     else:
         mask = None
 
@@ -198,7 +199,7 @@ def levelReduced(pic, new_width, new_height):
     """
     Must be a power-of-2 downscaling.
     Note the mask values are assumed to be floats, 0.0=transparent
-    1.0=opaque.
+    255.0=opaque.
     """
 
     if 1 in (pic.width, pic.height):
@@ -208,8 +209,8 @@ def levelReduced(pic, new_width, new_height):
     new_pixels = []
     new_mask = None
 
-    chunk_width = pic.width / new_width
-    chunk_height = pic.height / new_height
+    chunk_width = pic.width // new_width
+    chunk_height = pic.height // new_height
     chunk_total = chunk_width * chunk_height
 
     oldy = 0
@@ -235,18 +236,26 @@ def levelReduced(pic, new_width, new_height):
     ret.width = new_width
     ret.height = new_height
     ret.pixels = new_pixels
-    ret.mask = new_mask
+    if new_mask:
+        ret.mask = tuple(new_mask)
+    else:
+        ret.mask = None
 
     return ret
 
 
+#FIXME: new format
+# - header
+# - table of mip offsets
+# - each mip
 def saveMips(levels, name, original_width, original_height, path):
-    name8 = name + "\x00" * (8 - len(name))
+    name8 = name.encode() + b"\x00" * (8 - len(name))
+    name8 = name8[:8]
 
     masked = bool(levels[0].mask and 0.0 in levels[0].mask)
 
     with open(path, "wb") as fp:
-        fp.write("TEXMIPS\x00")
+        fp.write(b"TEXMIPS\x00")
         fp.write(struct.pack("<H", OUT_VERSION))
         fp.write(name8)
         fp.write(struct.pack("<H", levels[0].width))
@@ -257,14 +266,14 @@ def saveMips(levels, name, original_width, original_height, path):
 
         # will come back here after we know the data size
         mipdatalen_pos = fp.tell()
-        fp.write("\x00\x00\x00\x00")
+        fp.write(b"\x00\x00\x00\x00")
 
         mipdata_start = fp.tell()
 
         for level in levels:
             fp.write(level.pixelsAsBytes())
-            if masked:
-                fp.write(level.maskAsBytes())
+#           if masked:
+#               fp.write(level.maskAsBytes())
 
         mipdata_end = fp.tell()
 
@@ -280,9 +289,6 @@ def convertRGB(path):
 
     pic = loadRGB(path)
 
-#FIXME
-    return ########################################################################
-
     levels = [picScaledUpToPow2(pic)]
     for i in range(1, OUT_NUMLEVELS):
         if 1 in (levels[-1].width, levels[-1].height):
@@ -292,7 +298,7 @@ def convertRGB(path):
         # Note that we're always scaling down from the original full
         # size image rather than scaling down the most recently
         # scaled level. This is to avoid some color loss.
-        levels.append(levelReduced(levels[0], levels[-1].width / 2, levels[-1].height / 2))
+        levels.append(levelReduced(levels[0], levels[-1].width // 2, levels[-1].height // 2))
 
     saveMips(levels, name, pic.width, pic.height, new_path)
 
