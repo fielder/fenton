@@ -2,30 +2,30 @@
 #define __BDAT_H__
 
 extern int
-GetByte (void *bytes);
+GetByte (const void *bytes);
 
 extern int
-GetShort (void *bytes);
+GetShort (const void *bytes);
 
 extern int
-GetBigShort (void *bytes);
+GetBigShort (const void *bytes);
 
 extern int
-GetInt (void *bytes);
+GetInt (const void *bytes);
 
 extern int
-GetBigInt (void *bytes);
+GetBigInt (const void *bytes);
 
 extern float
-GetFloat (void *bytes);
+GetFloat (const void *bytes);
 
 extern float
-GetBigFloat (void *bytes);
+GetBigFloat (const void *bytes);
 
 extern double
-GetDouble (void *bytes);
+GetDouble (const void *bytes);
 
 extern double
-GetBigDouble (void *bytes);
+GetBigDouble (const void *bytes);
 
 #endif /* __BDAT_H__ */

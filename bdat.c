@@ -2,14 +2,14 @@
 
 
 int
-GetByte (void *bytes)
+GetByte (const void *bytes)
 {
 	return ((unsigned char *)bytes)[0];
 }
 
 
 int
-GetShort (void *bytes)
+GetShort (const void *bytes)
 {
 	return	(((unsigned char *)bytes)[0] << 0) |
 		(((unsigned char *)bytes)[1] << 8);
@@ -17,7 +17,7 @@ GetShort (void *bytes)
 
 
 int
-GetBigShort (void *bytes)
+GetBigShort (const void *bytes)
 {
 	return	(((unsigned char *)bytes)[1] << 0) |
 		(((unsigned char *)bytes)[0] << 8);
@@ -25,7 +25,7 @@ GetBigShort (void *bytes)
 
 
 int
-GetInt (void *bytes)
+GetInt (const void *bytes)
 {
 	return	(((unsigned char *)bytes)[0] << 0) |
 		(((unsigned char *)bytes)[1] << 8) |
@@ -35,7 +35,7 @@ GetInt (void *bytes)
 
 
 int
-GetBigInt (void *bytes)
+GetBigInt (const void *bytes)
 {
 	return	(((unsigned char *)bytes)[3] << 0) |
 		(((unsigned char *)bytes)[2] << 8) |
@@ -45,7 +45,7 @@ GetBigInt (void *bytes)
 
 
 float
-GetFloat (void *bytes)
+GetFloat (const void *bytes)
 {
 	union {
 		float f;
@@ -62,7 +62,7 @@ GetFloat (void *bytes)
 
 
 float
-GetBigFloat (void *bytes)
+GetBigFloat (const void *bytes)
 {
 	union {
 		float f;
@@ -79,7 +79,7 @@ GetBigFloat (void *bytes)
 
 
 double
-GetDouble (void *bytes)
+GetDouble (const void *bytes)
 {
 	union {
 		double d;
@@ -100,7 +100,7 @@ GetDouble (void *bytes)
 
 
 double
-GetBigDouble (void *bytes)
+GetBigDouble (const void *bytes)
 {
 	union {
 		double d;
