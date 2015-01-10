@@ -7,7 +7,7 @@
 #include "appio.h"
 #include "fenton.h"
 
-static const double flyspeed = 64.0;
+#define FLYSPEED 64.0
 
 #if 1
 /* wasd-style on a kinesis advantage w/ dvorak */
@@ -161,7 +161,7 @@ CameraMovement (void)
 	/* movement */
 
 	int left, forward, up;
-	double speed = flyspeed;
+	double speed = FLYSPEED;
 	double v[3];
 
 	if (input.key.state[FK_LSHIFT] || input.key.state[FK_RSHIFT])

@@ -20,6 +20,7 @@ struct viewplane_s
 {
 	double normal[3];
 	double dist;
+	int bbox_check_idx;
 };
 
 struct camera_s

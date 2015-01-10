@@ -57,6 +57,14 @@ R_CalcViewXForm (void)
 }
 
 
+static int
+PlaneBBoxCheckIndex (const double normal[3])
+{
+	//TODO
+	return 0;
+}
+
+
 static void
 CalcViewPlanes (void)
 {
@@ -75,6 +83,7 @@ CalcViewPlanes (void)
 	v[2] = sin (ang);
 	Vec_Transform (cam2world, v, p->normal);
 	p->dist = Vec_Dot (p->normal, camera.pos);
+	p->bbox_check_idx = PlaneBBoxCheckIndex (p->normal);
 
 	p = &camera.vplanes[VPLANE_RIGHT];
 	ang = (camera.fov_x / 2.0);
@@ -83,6 +92,7 @@ CalcViewPlanes (void)
 	v[2] = sin (ang);
 	Vec_Transform (cam2world, v, p->normal);
 	p->dist = Vec_Dot (p->normal, camera.pos);
+	p->bbox_check_idx = PlaneBBoxCheckIndex (p->normal);
 
 	p = &camera.vplanes[VPLANE_TOP];
 	ang = (camera.fov_y / 2.0);
@@ -91,6 +101,7 @@ CalcViewPlanes (void)
 	v[2] = sin (ang);
 	Vec_Transform (cam2world, v, p->normal);
 	p->dist = Vec_Dot (p->normal, camera.pos);
+	p->bbox_check_idx = PlaneBBoxCheckIndex (p->normal);
 
 	p = &camera.vplanes[VPLANE_BOTTOM];
 	ang = (camera.fov_y / 2.0);
@@ -99,6 +110,7 @@ CalcViewPlanes (void)
 	v[2] = sin (ang);
 	Vec_Transform (cam2world, v, p->normal);
 	p->dist = Vec_Dot (p->normal, camera.pos);
+	p->bbox_check_idx = PlaneBBoxCheckIndex (p->normal);
 }
 
 
