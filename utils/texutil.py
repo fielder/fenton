@@ -44,7 +44,6 @@ wadfile = None
 texturedefs = None
 pnames = None
 texturelists = None
-playpal = None
 palettes = None
 patches = None
 
@@ -54,7 +53,6 @@ def clear():
     global texturedefs
     global pnames
     global texturelists
-    global playpal
     global palettes
     global patches
 
@@ -65,7 +63,6 @@ def clear():
     texturedefs = None
     pnames = None
     texturelists = None
-    playpal = None
     palettes = None
     patches = None
 
@@ -78,7 +75,7 @@ def loadFromWad(w):
     elif isinstance(w, wad.Wad):
         pass
     else:
-        raise ValueError("cannot load wad %s" % w)
+        raise ValueError("cannot load wad {}".format(w))
 
     clear()
 
@@ -86,17 +83,18 @@ def loadFromWad(w):
 
     _loadPalettes()
     _loadPNAMES()
-    _loadPatches()
-    _loadTextureList(1)
-    _loadTextureList(2)
+    _loadTextureList("TEXTURE1")
+    if "TEXTURE2" in wadfile.lump_names:
+        # shareware wad won't have 2nd texture set
+        _loadTextureList("TEXTURE2")
     _loadTextureDefs()
 
 
 def _loadPalettes():
-    global playpal
     global palettes
 
     playpal = wadfile.readLump("PLAYPAL")
+
     palettes = []
     for rawpal in wad.iterChopBytes(playpal, 768):
         pal = [rawpal[i * 3: i * 3 + 3] for i in range(256)]
@@ -109,18 +107,20 @@ def _loadPNAMES():
     raw = wadfile.readLump("PNAMES")
     cnt, = struct.unpack("<i", raw[:4])
 
+    # The PNAMES lump is just a list of strings telling the names of
+    # patches. Textures refer to patches by number, not name. This
+    # number is an index into the PNAMES list.
+
     pnames = []
     for name8 in wad.iterChopBytes(raw, 8, count=cnt, start_offset=4):
         pnames.append(wad.wadBytesToString(name8))
 
 
-def _loadTextureList(texlistnum):
+def _loadTextureList(texlistname):
     global texturelists
 
     if texturelists is None:
         texturelists = collections.OrderedDict()
-
-    texlistname = "TEXTURE%d" % texlistnum
 
     tex_name_to_fileofs = {}
 
@@ -176,14 +176,16 @@ def findTextureDef(name):
     for td in texturedefs:
         if td.name == name:
             return td
-    raise LookupError("no texture def \"%s\"" % name)
+    raise LookupError("no texture def \"{}\"".format(name))
 
 
-def _loadPatches():
+def _getPatch(name):
     global patches
 
-    patches = {}
-    for name in pnames:
+    if patches is None:
+        patches = {}
+
+    if name not in patches:
         raw = wadfile.readLump(name)
 
         w, = struct.unpack("<h", raw[0:2])
@@ -220,6 +222,8 @@ def _loadPatches():
 
         patches[name] = p
 
+    return patches[name]
+
 
 def _paintColumn(col, mask, posts, originy):
     for post in posts:
@@ -244,7 +248,12 @@ def getTexture(texdef):
     masks = [[0] * texdef.height for x in range(texdef.width)]
 
     for tdp in texdef.patches:
-        patch = patches[pnames[tdp.patchnum]]
+        # Note we get and build patches on the fly rather than when
+        # initially setting up the wad. Previously we loaded all patches
+        # in the PNAMES lump. But, some wads have PNAMES entries that
+        # are not used by any texture and also don't point to an actual
+        # existing patch lump.
+        patch = _getPatch(pnames[tdp.patchnum])
 
         x1 = tdp.originx
         x2 = x1 + patch.width
@@ -274,17 +283,13 @@ def getFlat(name):
         lump = wadfile.lumps[idx]
         if lump.name == name and lump.size == 4096:
             return wadfile.readLump(lump)
-    raise LookupError("failed finding flat \"%s\"" % name)
+    raise LookupError("failed finding flat \"{}\"".format(name))
 
 
 if __name__ == "__main__":
     import sys
-
-    if len(sys.argv) == 1:
-        pass
-    elif len(sys.argv) == 2:
-        loadFromWad(sys.argv[1])
+    for path in sys.argv[1:]:
+        loadFromWad(path)
         textures = [getTexture(td) for td in texturedefs]
-        print("%d textures loaded" % len(textures))
-    else:
-        pass
+        print("{} textures loaded in \"{}\"".format(len(textures), path))
+        clear()

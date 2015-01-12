@@ -3,7 +3,6 @@
 import sys
 import os
 import struct
-import collections
 
 import wad
 import texutil
@@ -21,11 +20,11 @@ _maplumps = [   "THINGS", \
                 "REJECT", \
                 "BLOCKMAP" ]
 
-THINGS_FILE = "THINGS%stxt" % os.path.extsep
-VERTEXES_FILE = "VERTEXES%stxt" % os.path.extsep
-LINEDEFS_FILE = "LINEDEFS%stxt" % os.path.extsep
-SIDEDEFS_FILE = "SIDEDEFS%stxt" % os.path.extsep
-SECTORS_FILE = "SECTORS%stxt" % os.path.extsep
+THINGS_FILE = "THINGS{}txt".format(os.path.extsep)
+VERTEXES_FILE = "VERTEXES{}txt".format(os.path.extsep)
+LINEDEFS_FILE = "LINEDEFS{}txt".format(os.path.extsep)
+SIDEDEFS_FILE = "SIDEDEFS{}txt".format(os.path.extsep)
+SECTORS_FILE = "SECTORS{}txt".format(os.path.extsep)
 
 
 def _iterLumpsForMap(w, mapname):
@@ -42,7 +41,7 @@ def _iterLumpsForMap(w, mapname):
                 return
         else:
             idx += 1
-    raise LookupError("cannot find map \"%s\"" % mapname)
+    raise LookupError("cannot find map \"{}\"".format(mapname))
 
 
 def _dumpTHINGS(destdir, raw):
@@ -51,7 +50,7 @@ def _dumpTHINGS(destdir, raw):
         fp.write("idx x y angle type options\n")
         for idx, traw in enumerate(wad.iterChopBytes(raw, 10)):
             x, y, angle, type_, options = struct.unpack("<hhhhh", traw)
-            fp.write("%d %d %d %d %d 0x%x\n" % (idx, x, y, angle, type_, options))
+            fp.write("{} {} {} {} {} 0x{:x}\n".format(idx, x, y, angle, type_, options))
 
 
 def _dumpVERTEXES(destdir, raw):
@@ -60,7 +59,7 @@ def _dumpVERTEXES(destdir, raw):
         fp.write("idx x y\n")
         for idx, vraw in enumerate(wad.iterChopBytes(raw, 4)):
             x, y = struct.unpack("<hh", vraw)
-            fp.write("%d %d %d\n" % (idx, x, y))
+            fp.write("{} {} {}\n".format(idx, x, y))
 
 
 def _dumpLINEDEFS(destdir, raw):
@@ -69,7 +68,7 @@ def _dumpLINEDEFS(destdir, raw):
         fp.write("idx v1 v2 flags special tag side1 side2\n")
         for idx, lraw in enumerate(wad.iterChopBytes(raw, 14)):
             v1, v2, flags, special, tag, sidenum0, sidenum1 = struct.unpack("<hhhhhhh", lraw)
-            fp.write("%d %d %d 0x%x %d %d %d %d\n" % (idx, v1, v2, flags, special, tag, sidenum0, sidenum1))
+            fp.write("{} {} {} 0x{:x} {} {} {} {}\n".format(idx, v1, v2, flags, special, tag, sidenum0, sidenum1))
 
 
 def _dumpSIDEDEFS(destdir, raw):
@@ -78,7 +77,7 @@ def _dumpSIDEDEFS(destdir, raw):
         fp.write("idx x_shift y_shift uppertexture lowertexture middletexture sector\n")
         for idx, sraw in enumerate(wad.iterChopBytes(raw, 30)):
             xoff, yoff, toptex, bottomtex, middletex, sector = struct.unpack("<hh8s8s8sh", sraw)
-            fp.write("%d %d %d \"%s\" \"%s\" \"%s\" %d\n" % (idx, xoff, yoff, wad.wadBytesToString(toptex), wad.wadBytesToString(bottomtex), wad.wadBytesToString(middletex), sector))
+            fp.write("{} {} {} \"{}\" \"{}\" \"{}\" {}\n".format(idx, xoff, yoff, wad.wadBytesToString(toptex), wad.wadBytesToString(bottomtex), wad.wadBytesToString(middletex), sector))
 
 
 def _dumpSECTORS(destdir, raw):
@@ -87,13 +86,13 @@ def _dumpSECTORS(destdir, raw):
         fp.write("idx floor ceiling floortexture ceilingtexture light special tag\n")
         for idx, sraw in enumerate(wad.iterChopBytes(raw, 26)):
             f_height, c_height, f_tex, c_tex, light, special, tag = struct.unpack("<hh8s8shhh", sraw)
-            fp.write("%d %d %d \"%s\" \"%s\" %d %d %d\n" % (idx, f_height, c_height, wad.wadBytesToString(f_tex), wad.wadBytesToString(c_tex), light, special, tag))
+            fp.write("{} {} {} \"{}\" \"{}\" {} {} {}\n".format(idx, f_height, c_height, wad.wadBytesToString(f_tex), wad.wadBytesToString(c_tex), light, special, tag))
 
 
 def _mkdir(path):
     if not os.path.isdir(path):
         if os.path.isfile(path):
-            raise ValueError("map file \"%s\" already exists" % path)
+            raise ValueError("map file \"{}\" already exists".format(path))
         os.mkdir(path)
 
 
@@ -117,7 +116,7 @@ def _dumpTextures(destdir, sidedefs_raw):
         if not name.strip() or name.strip() == "-":
             continue
 
-        outpath = os.path.join(texturesdir, "%s%srgb" % (name, os.path.extsep))
+        outpath = os.path.join(texturesdir, "{}{}rgb".format(name, os.path.extsep))
 
         texdef = texutil.findTextureDef(name)
         tex = texutil.getTexture(texdef)
@@ -163,7 +162,7 @@ def _dumpFlats(destdir, sectors_raw):
         all_used.add(c_tex)
 
     for name in all_used:
-        outpath = os.path.join(flatsdir, "%s%srgb" % (name, os.path.extsep))
+        outpath = os.path.join(flatsdir, "{}{}rgb".format(name, os.path.extsep))
 
         if name == "F_SKY1":
             # Heretic's sky flat doesn't have 4096 bytes. It's used as a
@@ -183,30 +182,41 @@ def _dumpFlats(destdir, sectors_raw):
 
 
 def _dumpMap(w, mapname, lumps):
+    # run the iterator to die now if the map can't be found so we don't
+    # make an empty directory
+    lumps = list(lumps)
+
     _mkdir(mapname)
 
-    dumpout = {}
-    dumpout["THINGS"] = _dumpTHINGS
-    dumpout["VERTEXES"] = _dumpVERTEXES
-    dumpout["LINEDEFS"] = _dumpLINEDEFS
-    dumpout["SIDEDEFS"] = _dumpSIDEDEFS
-    dumpout["SECTORS"] = _dumpSECTORS
-
     for l in lumps:
-        if l.name in dumpout:
+
+        if l.name == "THINGS":
+            _dumpTHINGS(mapname, w.readLump(l))
+
+        elif l.name == "VERTEXES":
+            _dumpVERTEXES(mapname, w.readLump(l))
+
+        elif l.name == "LINEDEFS":
+            _dumpLINEDEFS(mapname, w.readLump(l))
+
+        elif l.name == "SIDEDEFS":
             lumpraw = w.readLump(l)
+            _dumpSIDEDEFS(mapname, lumpraw)
+            _dumpTextures(mapname, lumpraw)
 
-            dumpout[l.name](mapname, lumpraw)
+        elif l.name == "SECTORS":
+            lumpraw = w.readLump(l)
+            _dumpSECTORS(mapname, lumpraw)
+            _dumpFlats(mapname, lumpraw)
 
-            if l.name == "SIDEDEFS":
-                _dumpTextures(mapname, lumpraw)
-            elif l.name == "SECTORS":
-                _dumpFlats(mapname, lumpraw)
+        else:
+            # map lump we don't care about... for now
+            pass
 
 
 def main(argv):
     if len(argv) < 3:
-        print("usage: %s <wad> mapname" % argv[0])
+        print("usage: {} <wad> mapname".format(argv[0]))
         sys.exit(0)
 
     w = wad.Wad(argv[1])
@@ -220,73 +230,106 @@ def main(argv):
     texutil.clear()
 
 
-def orderedObjs(objs):
-    """
-    For objs loaded from a list file, assuming each entry has an .idx
-    attribute, simply put them into a dict for key'ing by the .idx
-    """
-
-    return collections.OrderedDict( ((o.idx, o) for o in objs) )
-
-
-def loadObjList(path):
-    ret = []
-
-    with open(path, "rt") as fp:
-        hdr = None
-        for line in fp:
-            line = line.strip()
-            if not line:
-                continue
-
-            hdr = line.split()
-            break
-
-        if not hdr:
-            raise ValueError("no header in \"%s\"" % path)
-
-        class Obj(object):
-            pass
-        for attr in hdr:
-            setattr(Obj, attr, None)
-
-        for line in fp:
-            line = line.strip()
-            if not line:
-                continue
-
-            items = line.split()
-            if len(items) != len(hdr):
-                raise ValueError("invalid elements in line \"%s\"" % line)
-
-            obj = Obj()
-            for idx, str_ in enumerate(items):
-                if str_.startswith("\""):
-                    val = str_.strip("\"")
-                elif "." in str_:
-                    val = float(str_)
-                else:
-                    val = int(str_, 0)
-                setattr(obj, hdr[idx], val)
-            ret.append(obj)
-
-    return ret
-
-def loadTextTHINGS(mapdir):
-    return loadObjList(os.path.join(mapdir, THINGS_FILE))
-
-def loadTextVERTEXES(mapdir):
-    return loadObjList(os.path.join(mapdir, VERTEXES_FILE))
-
-def loadTextLINEDEFS(mapdir):
-    return loadObjList(os.path.join(mapdir, LINEDEFS_FILE))
-
-def loadTextSIDEDEFS(mapdir):
-    return loadObjList(os.path.join(mapdir, SIDEDEFS_FILE))
-
-def loadTextSECTORS(mapdir):
-    return loadObjList(os.path.join(mapdir, SECTORS_FILE))
-
-
 if __name__ == "__main__":
     main(sys.argv)
+
+
+#import collections
+#import string
+#
+#
+#def orderedObjs(objs):
+#    """
+#    For objs loaded from a list file, assuming each entry has an .idx
+#    attribute, simply put them into a dict for key'ing by the .idx
+#    """
+#
+#    return collections.OrderedDict( ((o.idx, o) for o in objs) )
+#
+#
+#def _iterSplit(s):
+#    """
+#    Split a string by white-space-delimited tokens. A token needing to
+#    hold a white-space can be enclosed in double quotes.
+#    """
+#
+#    idx = 0
+#    while idx < len(s):
+#        # skip whitespaces
+#        while idx < len(s) and s[idx] in string.whitespace:
+#            idx += 1
+#        if idx == len(s):
+#            break
+#        if s[idx] == "\"":
+#            start = idx
+#            idx += 1
+#            while idx < len(s) and s[idx] != "\"":
+#                idx += 1
+#            if idx == len(s):
+#                raise ValueError("unterminated quoted item")
+#            idx += 1
+#            yield s[start:idx]
+#        else:
+#            start = idx
+#            while idx < len(s) and s[idx] not in string.whitespace:
+#                idx += 1
+#            yield s[start:idx]
+#
+#
+#def loadObjList(path):
+#    ret = []
+#
+#    with open(path, "rt") as fp:
+#        hdr = None
+#        for line in fp:
+#            line = line.strip()
+#            if not line:
+#                continue
+#
+#            hdr = line.split()
+#            break
+#
+#        if not hdr:
+#            raise ValueError("no header in \"%s\"" % path)
+#
+#        class Obj(object):
+#            pass
+#        for attr in hdr:
+#            setattr(Obj, attr, None)
+#
+#        for line in fp:
+#            line = line.strip()
+#            if not line:
+#                continue
+#
+#            items = list(_iterSplit(line))
+#            if len(items) != len(hdr):
+#                raise ValueError("invalid elements in line \"%s\"" % line)
+#
+#            obj = Obj()
+#            for idx, str_ in enumerate(items):
+#                if str_.startswith("\""):
+#                    val = str_.strip("\"")
+#                elif "." in str_:
+#                    val = float(str_)
+#                else:
+#                    val = int(str_, 0)
+#                setattr(obj, hdr[idx], val)
+#            ret.append(obj)
+#
+#    return ret
+#
+#def loadTextTHINGS(mapdir):
+#    return loadObjList(os.path.join(mapdir, THINGS_FILE))
+#
+#def loadTextVERTEXES(mapdir):
+#    return loadObjList(os.path.join(mapdir, VERTEXES_FILE))
+#
+#def loadTextLINEDEFS(mapdir):
+#    return loadObjList(os.path.join(mapdir, LINEDEFS_FILE))
+#
+#def loadTextSIDEDEFS(mapdir):
+#    return loadObjList(os.path.join(mapdir, SIDEDEFS_FILE))
+#
+#def loadTextSECTORS(mapdir):
+#    return loadObjList(os.path.join(mapdir, SECTORS_FILE))

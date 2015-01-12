@@ -114,6 +114,7 @@ def picScaledUpToPow2(pic):
     new_mask = None
 
     if (new_width, new_height) == (pic.width, pic.height):
+        # already at a power-of-2 size
         return pic
 
     # uses point sampling
@@ -126,7 +127,7 @@ def picScaledUpToPow2(pic):
     ystep = pic.height * (1 << FRACBITS) // new_height
     ymap = [(idx * ystep) >> FRACBITS for idx in range(new_height)]
 
-    new_pixels = [0] * (new_width * new_height)
+    new_pixels = [None] * (new_width * new_height)
     for y in range(new_height):
         for x in range(new_width):
             new_pixels[y * new_width + x] = pic.pixels[ymap[y] * pic.width + xmap[x]]
@@ -211,7 +212,6 @@ def levelReduced(pic, new_width, new_height):
 
     chunk_width = pic.width // new_width
     chunk_height = pic.height // new_height
-    chunk_total = chunk_width * chunk_height
 
     oldy = 0
     for y in range(new_height):
@@ -244,10 +244,29 @@ def levelReduced(pic, new_width, new_height):
     return ret
 
 
-#FIXME: new format
-# - header
-# - table of mip offsets
-# - each mip
+# - "TEXMIPS\0", char[8]
+# - version, uint
+#
+# - texture name, terminated char[]
+#
+# - original width, uint
+# - original height, uint
+#
+# - num entries in mip table, uint
+# - mip table
+#   - mip level 0 width, uint
+#   - mip level 0 height, uint
+#   - mip level 0 pixels offset, uint
+#   - mip level 0 pixels data size, uint
+#   - mip level 0 alpha offset, uint
+#   - mip level 0 alpha data size, uint
+#   - ...
+#   - ...
+#
+# All pixels are 3 bytes in RGB format
+# Alpha data is RLE, huffman?
+# If an alpha offset is 0 there is no alpha for that level; ie: opaque
+
 def saveMips(levels, name, original_width, original_height, path):
     name8 = name.encode() + b"\x00" * (8 - len(name))
     name8 = name8[:8]

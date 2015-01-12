@@ -28,23 +28,23 @@ def iterChopBytes(b, chunk_len, count=None, start_offset=0):
             idx += chunk_len
 
 
-def wadBytesToString(b):
+def wadBytesToString(raw):
     """
     Convert a byte sequence read from a wad file to a python string.
     """
 
-    if b"\x00" in b:
-        b = b[:b.index(b"\x00")]
-    return b.decode().upper()
+    if b"\x00" in raw:
+        raw = raw[:raw.index(b"\x00")]
+    return raw.decode().upper()
 
 
-def stringToWadBytes(s):
+def stringToWadBytes(s, maxlen=8):
     """
     Format a string to be used as a string stored in a wad file.
     """
 
-    b = s.upper().encode()
-    return b + b"\x00" * (8 - len(b))
+    raw = s.upper().encode()
+    return raw + b"\x00" * (maxlen - len(raw))
 
 
 def writeWad(path, lumps):
@@ -117,8 +117,11 @@ class Wad(object):
     def open(self, path):
         handle = open(path, "rb")
 
+        #FIXME: possible dangling file pointer on exceptions here... meh
+
         if handle.read(4) not in (b"IWAD", b"PWAD"):
-            raise Exception("\"%s\" is not a valid wad file" % path)
+            handle.close()
+            raise Exception("\"{}\" is not a valid wad file".format(path))
 
         numlumps, = struct.unpack("<i", handle.read(4))
         infotableofs, = struct.unpack("<i", handle.read(4))
@@ -146,7 +149,7 @@ class Wad(object):
             if self.lumps[offs].name == lumpname:
                 return self.readLump(self.lumps[offs])
             offs += 1
-        raise Exception("unable to find lump \"%s\"" % lumpname)
+        raise Exception("unable to find lump \"{}\"".format(lumpname))
 
     def readLump(self, l):
         if isinstance(l, int):
@@ -156,7 +159,7 @@ class Wad(object):
         elif isinstance(l, WadLump):
             pass
         else:
-            raise Exception("invalid lump \"%s\"" % l)
+            raise Exception("invalid lump \"{}\"".format(l))
 
         return self.readBytes(l.filepos, l.size)
 
@@ -171,17 +174,18 @@ if __name__ == "__main__":
     if len(sys.argv) == 1:
         pass
     elif len(sys.argv) == 2:
+        # list what's in the wad
         w = Wad(sys.argv[1])
         print("offset size name")
         for l in w.lumps:
             print(l.filepos, l.size, l.name)
-        print("%d lumps" % len(w.lumps))
+        print("{} lumps".format(len(w.lumps)))
     else:
+        # extract lumps from the wad to individual files
         w = Wad(sys.argv[1])
         for lumpname in sys.argv[2:]:
             lumpname = lumpname.upper()
             dat = w.readLump(lumpname)
-            fp = open(lumpname, "wb")
-            fp.write(dat)
-            fp.close()
-            print("wrote %d bytes to \"%s\"" % (len(dat), lumpname))
+            with open(lumpname, "wb") as fp:
+                fp.write(dat)
+            print("wrote {} bytes to \"{}\"".format(len(dat), lumpname))
