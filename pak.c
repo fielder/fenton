@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "pak.h"
 
@@ -16,52 +17,44 @@ struct pakfile_s
 
 struct pak_s
 {
-	struct pak_s *next;
 	char *path;
 	int fd;
 	unsigned int num_files;
 	struct pakfile_s files[0];
 };
 
-static struct pak_s paks = { NULL };
-
 
 static unsigned int
 GetUInt (const void *ptr)
 {
-	const char *bytes = ptr;
-	return	((unsigned int)bytes[0] << 0) | ((unsigned int)bytes[1] << 8) |
-		((unsigned int)bytes[2] << 16) | ((unsigned int)bytes[3] << 24);
+	const unsigned char *b = ptr;
+	return (b[0] << 0) | (b[1] << 8) | (b[2] << 16) | (b[3] << 24);
 }
 
 
-int
-Pak_AddFile (const char *path)
+struct pak_s *
+Pak_Open (const char *path)
 {
-	struct pak_s *pak;
 	int fd, i, j;
 	char hdr[12];
-	unsigned dirofs, dirlen;
-
-	for (pak = paks.next; pak != NULL; pak = pak->next)
-	{
-		if (strcmp(pak->path, path) == 0)
-			return 1;
-	}
+	unsigned int dirofs, dirlen;
+	struct pak_s *pak;
 
 	if ((fd = open(path, O_RDONLY)) == -1)
-		return 0;
+	{
+		return NULL;
+	}
 
 	if (read(fd, hdr, sizeof(hdr)) != sizeof(hdr))
 	{
 		close (fd);
-		return 0;
+		return NULL;
 	}
 
 	if (strncmp(hdr, "PACK", 4) != 0)
 	{
 		close (fd);
-		return 0;
+		return NULL;
 	}
 
 	dirofs = GetUInt (hdr + 4);
@@ -69,8 +62,6 @@ Pak_AddFile (const char *path)
 
 	pak = malloc (sizeof(*pak) + dirlen + strlen(path) + 1);
 
-	pak->next = paks.next;
-	paks.next = pak;
 	pak->fd = fd;
 	pak->num_files = dirlen / sizeof(struct pakfile_s);
 	pak->path = (char *)pak + sizeof(*pak) + dirlen;
@@ -79,8 +70,9 @@ Pak_AddFile (const char *path)
 	lseek (pak->fd, dirofs, SEEK_SET);
 	if (read(pak->fd, pak->files, dirlen) != dirlen)
 	{
-		Pak_CloseFile (path);
-		return 0;
+		close (pak->fd);
+		free (pak);
+		return NULL;
 	}
 
 	for (i = 0; i < pak->num_files; i++)
@@ -92,102 +84,48 @@ Pak_AddFile (const char *path)
 		pak->files[i].filelen = GetUInt (&pak->files[i].filelen);
 	}
 
-	return 1;
-}
-
-
-void
-Pak_CloseFile (const char *path)
-{
-	struct pak_s *pak;
-
-	for (	pak = &paks;
-		pak->next != NULL && strcmp(pak->next->path, path) != 0;
-		pak = pak->next) {}
-
-	if (pak->next != NULL)
-	{
-		struct pak_s *n = pak->next;
-		pak->next = pak->next->next;
-		if (n->fd != -1)
-			close (n->fd);
-		free (n);
-	}
-}
-
-
-void
-Pak_CloseAll (void)
-{
-	while (paks.next != NULL)
-		Pak_CloseFile (paks.next->path);
+	return pak;
 }
 
 
 void *
-Pak_Read (const char *name, unsigned int *size)
+Pak_Close (struct pak_s *pak)
 {
-	const struct pak_s *pak;
-
-	/* try a file first */
-	{
-		void *ret = NULL;
-		int fd = open (name, O_RDONLY);
-		if (fd != -1)
-		{
-			int sz = lseek (fd, 0, SEEK_END);
-			if (sz != -1 && sz < (1024 * 1024 * 1024))
-			{
-				if ((ret = malloc(sz + 1)) != NULL)
-				{
-					if (lseek(fd, 0, SEEK_SET) == -1 || read(fd, ret, sz) != sz)
-					{
-						free (ret);
-						ret = NULL;
-					}
-					else
-					{
-						((char *)ret)[sz] = '\0';
-						if (size != NULL)
-							*size = sz;
-					}
-				}
-			}
-			close (fd);
-			fd = -1;
-		}
-		if (ret != NULL)
-			return ret;
-	}
-
-	for (pak = paks.next; pak != NULL; pak = pak->next)
-	{
-		const struct pakfile_s *pf;
-		int i;
-		for (	i = 0, pf = pak->files;
-			i < pak->num_files && strcmp(pf->name, name) != 0;
-			i++, pf++) {}
-		if (i < pak->num_files)
-		{
-			void *dat = malloc (pf->filelen + 1);
-			if (lseek(pak->fd, pf->filepos, SEEK_SET) == -1 || read(pak->fd, dat, pf->filelen) != pf->filelen)
-			{
-				free (dat);
-				return NULL;
-			}
-			((char *)dat)[pf->filelen] = '\0';
-			if (size != NULL)
-				*size = pf->filelen;
-			return dat;
-		}
-	}
-
+	if (pak->fd != -1)
+		close (pak->fd);
+	free (pak);
 	return NULL;
 }
 
 
 void *
-Pak_Free (void *dat)
+Pak_ReadEntry (struct pak_s *pak, const char *name, unsigned int *size)
+{
+	const struct pakfile_s *pf;
+	int i;
+
+	for (	i = 0, pf = pak->files;
+		i < pak->num_files && strcmp(pf->name, name) != 0;
+		i++, pf++) {}
+
+	if (i == pak->num_files)
+		return NULL;
+
+	void *dat = malloc (pf->filelen + 1);
+	if (lseek(pak->fd, pf->filepos, SEEK_SET) == -1 || read(pak->fd, dat, pf->filelen) != pf->filelen)
+	{
+		free (dat);
+		return NULL;
+	}
+	((char *)dat)[pf->filelen] = '\0';
+	if (size != NULL)
+		*size = pf->filelen;
+	return dat;
+}
+
+
+void *
+Pak_FreeEntry (void *dat)
 {
 	if (dat != NULL)
 	{
@@ -209,7 +147,8 @@ main (int argc, const char **argv)
 
 	for (i = 1; i < argc; i++)
 	{
-		if (!Pak_AddFile(argv[i]))
+		struct pak_s *p;
+		if ((p = Pak_Open(argv[i])) == NULL)
 		{
 			fprintf (stderr, "error: unable to open \"%s\"\n", argv[i]);
 		}
@@ -218,13 +157,13 @@ main (int argc, const char **argv)
 			int j;
 			unsigned int bytesused = 0;
 			printf ("offset  size  name\n");
-			for (j = 0; j < paks.next->num_files; j++)
+			for (j = 0; j < p->num_files; j++)
 			{
-				printf ("%8d %8d %s\n", paks.next->files[j].filepos, paks.next->files[j].filelen, paks.next->files[j].name);
-				bytesused += paks.next->files[j].filelen;
+				printf ("%8d %8d %s\n", p->files[j].filepos, p->files[j].filelen, p->files[j].name);
+				bytesused += p->files[j].filelen;
 			}
-			printf ("%d bytes in %d entries\n", bytesused, paks.next->num_files);
-			Pak_CloseAll ();
+			printf ("%d bytes in %d entries\n", bytesused, p->num_files);
+			p = Pak_Close (p);
 		}
 	}
 

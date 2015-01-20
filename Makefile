@@ -11,8 +11,11 @@ OBJS =	$(OBJDIR)/bdat.o \
 	$(OBJDIR)/vec.o \
 	$(OBJDIR)/pak.o \
 	$(OBJDIR)/appio.o \
+	$(OBJDIR)/fdata.o \
 	$(OBJDIR)/render.o \
-	$(OBJDIR)/fenton.o
+	$(OBJDIR)/fenton.o \
+	$(OBJDIR)/r_span.o \
+	$(OBJDIR)/map.o
 
 all: $(TARGET)
 
@@ -33,9 +36,13 @@ $(OBJDIR)/pak.o: pak.c
 	$(CC) -c $(CFLAGS) $? -o $@
 $(OBJDIR)/appio.o: appio.c
 	$(CC) -c $(CFLAGS) $? -o $@
-$(OBJDIR)/fenton.o: fenton.c
+$(OBJDIR)/fdata.o: fdata.c
 	$(CC) -c $(CFLAGS) $? -o $@
 $(OBJDIR)/render.o: render.c
 	$(CC) -c $(CFLAGS) $? -o $@
-#$(OBJDIR)/rdata.o: rdata.c
-#	$(CC) -c $(CFLAGS) $? -o $@
+$(OBJDIR)/fenton.o: fenton.c
+	$(CC) -c $(CFLAGS) $? -o $@
+$(OBJDIR)/r_span.o: r_span.c
+	$(CC) -c $(CFLAGS) $? -o $@
+$(OBJDIR)/map.o: map.c
+	$(CC) -c $(CFLAGS) $? -o $@

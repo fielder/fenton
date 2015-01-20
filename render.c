@@ -3,6 +3,7 @@
 
 //#include "rdata.h"
 //#include "fenton.h"
+#include "appio.h"
 #include "vec.h"
 #include "render.h"
 
@@ -26,6 +27,7 @@ R_Init (void)
 void
 R_Shutdown (void)
 {
+	R_Span_Cleanup ();
 }
 
 
@@ -37,6 +39,8 @@ R_CameraChanged (int w, int h)
 
 	camera.dist = (w / 2.0) / tan(camera.fov_x / 2.0);
 	camera.fov_y = 2.0 * atan((h / 2.0) / camera.dist);
+
+	R_Span_Init ();
 }
 
 
@@ -117,7 +121,11 @@ CalcViewPlanes (void)
 void
 R_Refresh (void)
 {
+	char spanbuf[0x8000];
+
 	CalcViewPlanes ();
+
+	R_Span_BeginFrame (spanbuf, sizeof(spanbuf));
 
 #if 0
 	{

@@ -1,19 +1,18 @@
 #ifndef __PAK_H__
 #define __PAK_H__
 
-extern int
-Pak_AddFile (const char *path);
+struct pak_s;
 
-extern void
-Pak_CloseFile (const char *path);
-
-extern void
-Pak_CloseAll (void);
+extern struct pak_s *
+Pak_Open (const char *path);
 
 extern void *
-Pak_Read (const char *name, unsigned int *size);
+Pak_Close (struct pak_s *pak);
 
 extern void *
-Pak_Free (void *dat);
+Pak_ReadEntry (struct pak_s *pak, const char *name, unsigned int *size);
+
+extern void *
+Pak_FreeEntry (void *dat);
 
 #endif /* __PAK_H__ */

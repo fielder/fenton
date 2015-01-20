@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#include "pak.h"
+#include "map.h"
+#include "fdata.h"
 #include "vec.h"
 #include "render.h"
 #include "appio.h"
@@ -37,8 +38,9 @@ static struct
 void
 F_Quit (void)
 {
+	Map_Unload ();
 	R_Shutdown ();
-	Pak_CloseAll ();
+	Data_CloseAll ();
 	IO_Shutdown ();
 	IO_Terminate ();
 }
@@ -201,6 +203,9 @@ RunInput (void)
 
 	if (input.key.press['f'])
 		F_Log ("%g\n", fps.rate);
+
+	if (input.key.press['1'])
+		Map_Load ("MAP00");
 
 	if (input.key.release['p'])
 	{

@@ -61,4 +61,21 @@ R_CalcViewXForm (void);
 extern void
 R_Refresh (void);
 
+/* span stuff */
+
+extern void
+R_Span_Init (void);
+
+extern void
+R_Span_Cleanup (void);
+
+extern void
+R_Span_ClipAndEmit (int y, int x1, int x2);
+
+extern void
+R_Span_BeginFrame (void *buf, int buflen);
+
+extern void
+R_Span_DrawGSpans (void);
+
 #endif /* __RENDER_H__ */
