@@ -41,9 +41,7 @@ Pak_Open (const char *path)
 	struct pak_s *pak;
 
 	if ((fd = open(path, O_RDONLY)) == -1)
-	{
 		return NULL;
-	}
 
 	if (read(fd, hdr, sizeof(hdr)) != sizeof(hdr))
 	{
@@ -128,11 +126,8 @@ void *
 Pak_FreeEntry (void *dat)
 {
 	if (dat != NULL)
-	{
 		free (dat);
-		dat = NULL;
-	}
-	return dat;
+	return NULL;
 }
 
 

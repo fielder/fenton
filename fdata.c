@@ -1,24 +1,33 @@
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "pak.h"
 #include "fdata.h"
 
+enum
+{
+	ST_FILE,
+	ST_DIR,
+	ST_PAK,
+};
+
 struct datasource_s
 {
 	struct datasource_s *next;
+	char *path;
 	int type;
 };
 
 struct filesrc_s
 {
 	struct datasource_s dsrc;
-	char *path;
+	int fd;
 };
 
 struct dirsrc_s
 {
 	struct datasource_s dsrc;
-	char *path;
 };
 
 struct paksrc_s
@@ -34,12 +43,61 @@ static struct datasource_s sources = { NULL };
 int
 Data_AddPath (const char *path)
 {
+	struct datasource_s *src;
+
+	for (src = sources.next; src != NULL; src = src->next)
+	{
+		if (strcmp(src->path, path) == 0)
+			return 1;
+	}
+
+	//...
+
+	return 1;
+}
+
+
+static void
+CloseSource (struct datasource_s *src)
+{
+	if (src->type == ST_FILE)
+	{
+		struct filesrc_s *fs = (void *)src;
+		if (fs->fd != -1)
+			close (fs->fd);
+		free (fs);
+	}
+	else if (src->type == ST_DIR)
+	{
+		free (src);
+	}
+	else if (src->type == ST_PAK)
+	{
+		struct paksrc_s *ps = (void *)src;
+		Pak_Close (ps->pak);
+		free (ps);
+	}
+	else
+	{
+		//TODO: die ?
+	}
 }
 
 
 void
 Data_RemovePath (const char *path)
 {
+	struct datasource_s *p, *n;
+
+	for (	p = &sources, n = sources.next;
+		n != NULL && strcmp(n->path, path) != 0;
+		p = p->next, n = n->next ) {}
+
+	if (n != NULL)
+	{
+		p->next = n->next;
+		CloseSource (n);
+	}
 }
 
 
@@ -47,10 +105,7 @@ void
 Data_CloseAll (void)
 {
 	while (sources.next != NULL)
-	{
-		struct datasource_s *s = sources.next;
-		sources.next = sources.next->next;
-	}
+		Data_RemovePath (sources.next->path);
 }
 
 
@@ -58,18 +113,33 @@ void *
 Data_Free (void *dat)
 {
 	if (dat != NULL)
-	{
 		free (dat);
-		dat = NULL;
-	}
-	return dat;
+	return NULL;
 }
 
 
 void *
 Data_Fetch (const char *name, unsigned int *size)
 {
-	//...
+	struct datasource_s *src;
+
+	for (src = sources.next; src != NULL; src = src->next)
+	{
+		if (src->type == ST_FILE)
+		{
+		}
+		else if (src->type == ST_DIR)
+		{
+		}
+		else if (src->type == ST_PAK)
+		{
+		}
+		else
+		{
+			//TODO: die ?
+		}
+	}
+
 	return NULL;
 }
 
