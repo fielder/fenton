@@ -9,6 +9,7 @@
 #include "fenton.h"
 
 #define FLYSPEED 64.0
+#define LOADPAK NULL
 
 #if 1
 /* wasd-style on a kinesis advantage w/ dvorak */
@@ -89,9 +90,22 @@ F_Log (const char *fmt, ...)
 
 
 void
+F_AddPak (const char *path)
+{
+	if (Data_AddPath(path))
+		F_Log ("Loaded \"%s\"\n", path);
+	else
+		F_Error ("unable to load \"%s\"\n", path);
+}
+
+
+void
 F_Init (void)
 {
 	int w, h, bpp, scale, full;
+
+	if (LOADPAK)
+		F_AddPak (LOADPAK);
 
 	IO_Init ();
 
