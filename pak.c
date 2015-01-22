@@ -4,7 +4,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
 #include "pak.h"
 
@@ -86,7 +85,7 @@ Pak_Open (const char *path)
 }
 
 
-void *
+struct pak_s *
 Pak_Close (struct pak_s *pak)
 {
 	if (pak->fd != -1)

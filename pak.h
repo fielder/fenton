@@ -6,7 +6,7 @@ struct pak_s;
 extern struct pak_s *
 Pak_Open (const char *path);
 
-extern void *
+extern struct pak_s *
 Pak_Close (struct pak_s *pak);
 
 extern void *

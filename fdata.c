@@ -1,38 +1,17 @@
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "pak.h"
 #include "fdata.h"
-
-enum
-{
-	ST_FILE,
-	ST_DIR,
-	ST_PAK,
-};
 
 struct datasource_s
 {
 	struct datasource_s *next;
 	char *path;
-	int type;
-};
-
-struct filesrc_s
-{
-	struct datasource_s dsrc;
-	int fd;
-};
-
-struct dirsrc_s
-{
-	struct datasource_s dsrc;
-};
-
-struct paksrc_s
-{
-	struct datasource_s dsrc;
 	struct pak_s *pak;
 };
 
@@ -44,43 +23,26 @@ int
 Data_AddPath (const char *path)
 {
 	struct datasource_s *src;
+	struct pak_s *pak;
 
+	/* see if already loaded */
 	for (src = sources.next; src != NULL; src = src->next)
 	{
 		if (strcmp(src->path, path) == 0)
 			return 1;
 	}
 
-	//...
+	if ((pak = Pak_Open(path)) == NULL)
+		return 0;
+
+	src = malloc(sizeof(*src) + strlen(path) + 1);
+	src->next = sources.next;
+	sources.next = src;
+	src->path = (char *)src + sizeof(*src);
+	strcpy (src->path, path);
+	src->pak = pak;
 
 	return 1;
-}
-
-
-static void
-CloseSource (struct datasource_s *src)
-{
-	if (src->type == ST_FILE)
-	{
-		struct filesrc_s *fs = (void *)src;
-		if (fs->fd != -1)
-			close (fs->fd);
-		free (fs);
-	}
-	else if (src->type == ST_DIR)
-	{
-		free (src);
-	}
-	else if (src->type == ST_PAK)
-	{
-		struct paksrc_s *ps = (void *)src;
-		Pak_Close (ps->pak);
-		free (ps);
-	}
-	else
-	{
-		//TODO: die ?
-	}
 }
 
 
@@ -96,7 +58,10 @@ Data_RemovePath (const char *path)
 	if (n != NULL)
 	{
 		p->next = n->next;
-		CloseSource (n);
+
+		if (n->pak != NULL)
+			Pak_Close (n->pak);
+		free (n);
 	}
 }
 
@@ -121,36 +86,6 @@ Data_Free (void *dat)
 void *
 Data_Fetch (const char *name, unsigned int *size)
 {
-	struct datasource_s *src;
-
-	for (src = sources.next; src != NULL; src = src->next)
-	{
-		if (src->type == ST_FILE)
-		{
-		}
-		else if (src->type == ST_DIR)
-		{
-		}
-		else if (src->type == ST_PAK)
-		{
-		}
-		else
-		{
-			//TODO: die ?
-		}
-	}
-
-	return NULL;
-}
-
-
-
-#if 0
-void *
-Pak_Read (const char *name, unsigned int *size)
-{
-	const struct pak_s *pak;
-
 	/* try a file first */
 	{
 		void *ret = NULL;
@@ -182,28 +117,16 @@ Pak_Read (const char *name, unsigned int *size)
 			return ret;
 	}
 
-	for (pak = paks.next; pak != NULL; pak = pak->next)
+	struct datasource_s *src;
+
+	for (src = sources.next; src != NULL; src = src->next)
 	{
-		const struct pakfile_s *pf;
-		int i;
-		for (	i = 0, pf = pak->files;
-			i < pak->num_files && strcmp(pf->name, name) != 0;
-			i++, pf++) {}
-		if (i < pak->num_files)
-		{
-			void *dat = malloc (pf->filelen + 1);
-			if (lseek(pak->fd, pf->filepos, SEEK_SET) == -1 || read(pak->fd, dat, pf->filelen) != pf->filelen)
-			{
-				free (dat);
-				return NULL;
-			}
-			((char *)dat)[pf->filelen] = '\0';
-			if (size != NULL)
-				*size = pf->filelen;
-			return dat;
-		}
+		void *ret = Pak_ReadEntry (src->pak, name, size);
+		if (ret != NULL)
+			return ret;
 	}
+
+	/* not found */
 
 	return NULL;
 }
-#endif
