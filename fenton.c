@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 
 #include "map.h"
 #include "fdata.h"
@@ -96,6 +97,40 @@ F_AddPak (const char *path)
 		F_Log ("Loaded \"%s\"\n", path);
 	else
 		F_Error ("unable to load \"%s\"\n", path);
+}
+
+
+void
+F_LoadMap (const char *name)
+{
+	int loadfrompak, direxists;
+	char pakpath[1024];
+
+	if (Data_IsDir(name, &direxists) && direxists)
+	{
+		/* load from files in the map directory */
+		loadfrompak = 0;
+	}
+	else
+	{
+		const char *ext = ".pak";
+		if (strlen(name) + strlen(ext) >= sizeof(pakpath))
+			F_Error("map name too long");
+		memcpy (pakpath, name, strlen(name) + 1);
+		memcpy (pakpath + strlen(pakpath), ext, strlen(ext) + 1);
+		if (!Data_AddPath(pakpath))
+		{
+			F_Log ("Unable to find map \"%s\"\n", name);
+			return;
+		}
+		loadfrompak = 1;
+	}
+
+	if (!Map_Load(name))
+		F_Log ("Error loading map \"%s\"\n", name);
+
+	if (loadfrompak)
+		Data_RemovePath (pakpath);
 }
 
 
@@ -215,11 +250,11 @@ RunInput (void)
 	if (input.key.release['g'])
 		IO_ToggleGrab ();
 
-	if (input.key.press['f'])
+	if (input.key.release['f'])
 		F_Log ("%g\n", fps.rate);
 
-	if (input.key.press['1'])
-		Map_Load ("MAP00");
+	if (input.key.release['1'])
+		F_LoadMap ("MAP00");
 
 	if (input.key.release['p'])
 	{

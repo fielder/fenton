@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "fdata.h"
 #include "map.h"
 
 struct map_s map;
@@ -32,7 +33,13 @@ PlaneType (const double normal[3])
 		return NORMAL_Z;
 	else if (normal[2] == -1)
 		return NORMAL_NEGZ;
-	//TODO: finish
+	else
+	{
+		return	NORMAL_0 +
+			((normal[0] < 0) << 0) +
+			((normal[1] < 0) << 1) +
+			((normal[2] < 0) << 2);
+	}
 	return 0;
 }
 

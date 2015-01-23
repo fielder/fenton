@@ -130,3 +130,14 @@ Data_Fetch (const char *name, unsigned int *size)
 
 	return NULL;
 }
+
+
+int
+Data_IsDir (const char *path, int *isdir)
+{
+	struct stat sb;
+	if (stat(path, &sb) < 0)
+		return 0;
+	*isdir = S_ISDIR(sb.st_mode);
+	return 1;
+}

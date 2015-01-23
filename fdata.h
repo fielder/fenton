@@ -16,5 +16,8 @@ Data_Free (void *dat);
 extern void *
 Data_Fetch (const char *name, unsigned int *size);
 
+extern int
+Data_IsDir (const char *path, int *isdir);
+
 #endif /* __FDATA_H__ */
 

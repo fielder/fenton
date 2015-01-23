@@ -34,7 +34,7 @@ struct mvertex_s
 
 struct medge_s
 {
-	unsigned int v[2];
+	int v[2];
 };
 
 #if 0
@@ -94,7 +94,6 @@ struct mleaf_s
 	short numsurfs;
 	char align_padding[2]; /* to 32 bytes */
 };
-
 #endif
 
 struct map_s
