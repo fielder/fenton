@@ -100,9 +100,6 @@ struct map_s
 {
 	char *name;
 
-	void *raw;
-	int allocsz;
-
 	struct mplane_s *planes;
 	int num_planes;
 
