@@ -1,8 +1,8 @@
-//#include <stdio.h>
+#include <string.h>
 #include <math.h>
 
 //#include "rdata.h"
-//#include "fenton.h"
+#include "map.h"
 #include "appio.h"
 #include "vec.h"
 #include "render.h"
@@ -32,7 +32,7 @@ R_Shutdown (void)
 
 
 void
-R_CameraChanged (int w, int h)
+R_CameraSizeChanged (int w, int h)
 {
 	camera.center_x = w / 2.0;
 	camera.center_y = h / 2.0;
@@ -90,32 +90,6 @@ CalcAcceptReject (struct viewplane_s *p)
 }
 
 
-#if 0
-- load map
-  vertices
-  planes
-  edges
-- draw edges
-void drawbspjunk()
-{
-	int test[3];
-	for (plane in active_viewplanes)
-	{
-		test[0] = node->bbox[plane->reject[0]][0];
-		test[1] = node->bbox[plane->reject[1]][1];
-		test[2] = node->bbox[plane->reject[2]][2];
-		if (point_is_behind_plane)
-			return;
-		test[0] = node->bbox[plane->accept[0]][0];
-		test[1] = node->bbox[plane->accept[1]][1];
-		test[2] = node->bbox[plane->accept[2]][2];
-		if (point_is_on_front)
-			bbox_fully_in_front_of_plane___remove_plane_from_flags;
-	}
-}
-#endif
-
-
 static void
 CalcViewPlanes (void)
 {
@@ -165,29 +139,56 @@ CalcViewPlanes (void)
 }
 
 
+static void
+Render3DPoint (double x, double y, double z)
+{
+	double v[3], local[3], out[3];
+
+	v[0] = x; v[1] = y; v[2] = z;
+
+	Vec_Subtract (v, camera.pos, local);
+	Vec_Transform (camera.xform, local, out);
+	if (out[2] > 0.0)
+	{
+		int sx = camera.center_x - camera.dist * (out[0] / out[2]) + 0.5;
+		int sy = camera.center_y - camera.dist * (out[1] / out[2]) + 0.5;
+		if (sx >= 0 && sx < video.w && sy >= 0 && sy < video.h)
+		{
+			if (video.bpp == 16)
+				((unsigned short *)video.rows[sy])[sx] = 0xffff;
+			else
+				((unsigned int *)video.rows[sy])[sx] = 0x00ffffff;
+		}
+	}
+}
+
+
+void
+R_Clear (void)
+{
+	memset (video.buf, 0, video.w * video.h * video.bytes_pp);
+}
+
+
 void
 R_Refresh (void)
 {
 	char spanbuf[0x8000];
 
+	R_Clear ();
+
 	CalcViewPlanes ();
 
 	R_Span_BeginFrame (spanbuf, sizeof(spanbuf));
 
-#if 0
+	Render3DPoint(0,0,0);
+	Render3DPoint(10,0,0);
+	Render3DPoint(0,10,0);
+	Render3DPoint(0,0,10);
+	if (1)
 	{
 		int i;
-		for (i = 0; i < video.h; i++)
-		{
-			if (video.bpp == 16)
-			{
-				((unsigned short *)video.rows[i])[i] = 0xffff;
-			}
-			else
-			{
-				((unsigned int *)video.rows[i])[i] = 0x000000ff;
-			}
-		}
+		for (i = 0; i < map.num_vertices; i++)
+			Render3DPoint(map.vertices[i].xyz[0],map.vertices[i].xyz[1],map.vertices[i].xyz[2]);
 	}
-#endif
 }

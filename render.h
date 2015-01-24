@@ -53,10 +53,13 @@ extern void
 R_Shutdown (void);
 
 extern void
-R_CameraChanged (int w, int h);
+R_CameraSizeChanged (int w, int h);
 
 extern void
 R_CalcViewXForm (void);
+
+extern void
+R_Clear (void);
 
 extern void
 R_Refresh (void);

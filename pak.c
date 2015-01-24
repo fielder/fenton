@@ -10,21 +10,21 @@
 struct pakfile_s
 {
 	char name[56];
-	unsigned int filepos;
-	unsigned int filelen;
+	int filepos;
+	int filelen;
 };
 
 struct pak_s
 {
 	char *path;
 	int fd;
-	unsigned int num_files;
+	int num_files;
 	struct pakfile_s files[0];
 };
 
 
-static unsigned int
-GetUInt (const void *ptr)
+static int
+GetInt (const void *ptr)
 {
 	const unsigned char *b = ptr;
 	return (b[0] << 0) | (b[1] << 8) | (b[2] << 16) | (b[3] << 24);
@@ -36,7 +36,7 @@ Pak_Open (const char *path)
 {
 	int fd, i, j;
 	char hdr[12];
-	unsigned int dirofs, dirlen;
+	int dirofs, dirlen;
 	struct pak_s *pak;
 
 	if ((fd = open(path, O_RDONLY)) == -1)
@@ -54,8 +54,8 @@ Pak_Open (const char *path)
 		return NULL;
 	}
 
-	dirofs = GetUInt (hdr + 4);
-	dirlen = GetUInt (hdr + 8);
+	dirofs = GetInt (hdr + 4);
+	dirlen = GetInt (hdr + 8);
 
 	pak = malloc (sizeof(*pak) + dirlen + strlen(path) + 1);
 
@@ -77,8 +77,8 @@ Pak_Open (const char *path)
 		for (j = 0; j < 56 && pak->files[i].name[j] != '\0'; j++) {}
 		for (; j < 56; j++)
 			pak->files[i].name[j] = '\0';
-		pak->files[i].filepos = GetUInt (&pak->files[i].filepos);
-		pak->files[i].filelen = GetUInt (&pak->files[i].filelen);
+		pak->files[i].filepos = GetInt (&pak->files[i].filepos);
+		pak->files[i].filelen = GetInt (&pak->files[i].filelen);
 	}
 
 	return pak;
@@ -96,7 +96,7 @@ Pak_Close (struct pak_s *pak)
 
 
 void *
-Pak_ReadEntry (struct pak_s *pak, const char *name, unsigned int *size)
+Pak_ReadEntry (struct pak_s *pak, const char *name, int *size)
 {
 	const struct pakfile_s *pf;
 	int i;

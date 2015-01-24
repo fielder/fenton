@@ -10,7 +10,7 @@ extern struct pak_s *
 Pak_Close (struct pak_s *pak);
 
 extern void *
-Pak_ReadEntry (struct pak_s *pak, const char *name, unsigned int *size);
+Pak_ReadEntry (struct pak_s *pak, const char *name, int *size);
 
 extern void *
 Pak_FreeEntry (void *dat);

@@ -15,7 +15,7 @@ F_Log (const char *fmt, ...);
 extern void
 F_AddPak (const char *path);
 
-extern void
+void
 F_LoadMap (const char *name);
 
 extern double frametime;

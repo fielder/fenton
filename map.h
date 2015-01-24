@@ -46,7 +46,7 @@ struct msurface_s
 	int texvecs;
 
 	int plane;
-	int firstedge; /* in surfaceedges */
+	int firstedge; /* in edge loops */
 	short numedges;
 	short is_backside;
 
@@ -60,6 +60,7 @@ struct mtexvecs_s
 	double texvec_s[3];
 	double texvec_t[3];
 };
+#endif
 
 /* portals are always stored on the front of the plane */
 struct mportal_s
@@ -70,6 +71,7 @@ struct mportal_s
 	char align_padding[2]; /* to 12 bytes */
 };
 
+#if 0
 /* nodes are always stored on the front of the plane */
 struct mnode_s
 {
@@ -100,6 +102,8 @@ struct map_s
 {
 	char *name;
 
+	int allocsz;
+
 	struct mplane_s *planes;
 	int num_planes;
 
@@ -109,11 +113,11 @@ struct map_s
 	struct medge_s *edges;
 	int num_edges;
 
+	int *edgeloops;
+	int num_loopedges;
+
 //	struct msurface_s *surfaces;
 //	int num_surfaces;
-
-//	int *surfaceedges;
-//	int num_surfaceedges;
 
 //	struct mportal_s *portals;
 //	int num_portals;

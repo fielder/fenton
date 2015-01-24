@@ -84,38 +84,9 @@ Data_Free (void *dat)
 
 
 void *
-Data_Fetch (const char *name, unsigned int *size)
+Data_Fetch (const char *name, int *size)
 {
 	/* try a file first */
-	{
-		void *ret = NULL;
-		int fd = open (name, O_RDONLY);
-		if (fd != -1)
-		{
-			int sz = lseek (fd, 0, SEEK_END);
-			if (sz != -1 && sz < (1024 * 1024 * 1024))
-			{
-				if ((ret = malloc(sz + 1)) != NULL)
-				{
-					if (lseek(fd, 0, SEEK_SET) == -1 || read(fd, ret, sz) != sz)
-					{
-						free (ret);
-						ret = NULL;
-					}
-					else
-					{
-						((char *)ret)[sz] = '\0';
-						if (size != NULL)
-							*size = sz;
-					}
-				}
-			}
-			close (fd);
-			fd = -1;
-		}
-		if (ret != NULL)
-			return ret;
-	}
 
 	struct datasource_s *src;
 
@@ -129,6 +100,40 @@ Data_Fetch (const char *name, unsigned int *size)
 	/* not found */
 
 	return NULL;
+}
+
+
+void *
+Data_ReadFile (const char *path, int *size)
+{
+	void *ret = NULL;
+	int fd;
+
+	if ((fd = open(path, O_RDONLY)) != -1)
+	{
+		off_t sz = lseek (fd, 0, SEEK_END);
+		if (sz != -1 && sz < (1024 * 1024 * 1024))
+		{
+			if ((ret = malloc(sz + 1)) != NULL)
+			{
+				if (lseek(fd, 0, SEEK_SET) == -1 || read(fd, ret, sz) != sz)
+				{
+					free (ret);
+					ret = NULL;
+				}
+				else
+				{
+					((char *)ret)[sz] = '\0';
+					if (size != NULL)
+						*size = sz;
+				}
+			}
+		}
+		close (fd);
+		fd = -1;
+	}
+
+	return ret;
 }
 
 
