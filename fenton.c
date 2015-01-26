@@ -103,7 +103,9 @@ void
 F_LoadMap (const char *name)
 {
 	if (!Map_Load(name))
+	{
 		F_Log ("Failed loading \"%s\"\n", name);
+	}
 	else
 	{
 		F_Log ("Loaded \"%s\"\n", name);

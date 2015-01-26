@@ -87,16 +87,16 @@ struct mnode_s
 	short numportals;
 //	char align_padding[6]; /* to 72 bytes */
 };
+#endif
 
 struct mleaf_s
 {
 	int mins[3];
 	int maxs[3];
-	int firstsurf;
-	short numsurfs;
+	int firstsurface;
+	short numsurfaces;
 	char align_padding[2]; /* to 32 bytes */
 };
-#endif
 
 struct map_s
 {
@@ -119,14 +119,14 @@ struct map_s
 //	struct msurface_s *surfaces;
 //	int num_surfaces;
 
-//	struct mportal_s *portals;
-//	int num_portals;
+	struct mportal_s *portals;
+	int num_portals;
 
 //	struct mnode_s *nodes;
 //	int num_nodes;
 
-//	struct mleaf_s *leafs;
-//	int num_leafs;
+	struct mleaf_s *leafs;
+	int num_leafs;
 
 //	struct mtexvecs_s *texvecs;
 //	int num_texvecs;

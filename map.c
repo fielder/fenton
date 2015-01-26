@@ -207,6 +207,19 @@ LoadEdges (void)
 static int
 LoadEdgeLoops (void)
 {
+	int sz, i;
+
+	/* edgeloops can load directly; just need swapping */
+
+	if ((loadmap.edgeloops = Get("edgeloops", &sz)) == NULL)
+		return 0;
+	loadmap.num_loopedges = sz / sizeof(*loadmap.edgeloops);
+
+	for (i = 0; i < loadmap.num_loopedges; i++)
+		loadmap.edgeloops[i] = GetInt (&loadmap.edgeloops[i]);
+
+	loadmap.allocsz += sz;
+
 	return 1;
 }
 
@@ -245,7 +258,7 @@ Map_Load (const char *name)
 	int direxists;
 	char path[1024];
 
-	/* save room on end for, "vertices", "nodes", etc */
+	/* save room on end for filenames, "vertices", "nodes", etc */
 	if (strlen(name) > sizeof(path) - 100)
 		return 0;
 
