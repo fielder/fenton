@@ -62,13 +62,12 @@ struct mtexvecs_s
 };
 #endif
 
-/* portals are always stored on the front of the plane */
+/* portals are always stored on the front of the node plane */
 struct mportal_s
 {
-	int plane;
 	int firstedge;
 	short numedges;
-	char align_padding[2]; /* to 12 bytes */
+	char align_padding[2]; /* to 8 bytes */
 };
 
 #if 0

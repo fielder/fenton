@@ -18,6 +18,12 @@ FreeMap (struct map_s *m)
 		free (m->vertices);
 	if (m->edges != NULL)
 		free (m->edges);
+	if (m->edgeloops != NULL)
+		free (m->edgeloops);
+	if (m->portals != NULL)
+		free (m->portals);
+	if (m->leafs != NULL)
+		free (m->leafs);
 	//...
 
 	memset (m, 0, sizeof(*m));
@@ -30,44 +36,6 @@ Map_Unload (void)
 	FreeMap (&map);
 }
 
-
-/* on-disk structures */
-
-struct dplane_s
-{
-	double normal[3];
-	double dist;
-};
-
-struct dvert_s
-{
-	double xyz[3];
-};
-
-struct dedge_s
-{
-	int v[2];
-};
-
-struct dsurf_s
-{
-	int blah;
-};
-
-struct dportal_s
-{
-	int blah;
-};
-
-struct dnode_s
-{
-	int blah;
-};
-
-struct dleaf_s
-{
-	int blah;
-};
 
 static struct map_s loadmap;
 static struct pak_s *loadpak;
@@ -127,9 +95,22 @@ PlaneType (const double normal[3])
 static int
 LoadPlanes (void)
 {
+#if 0
+struct dplane_s
+{
+	double normal[3];
+	double dist;
+};
+#endif
+#if 0
 	int sz, cnt, i;
 	struct dplane_s *dplanes, *in;
 	struct mplane_s *out;
+
+	/* plane on disk:
+	 * double normal[3]
+	 * double dist
+	 */
 
 	if ((dplanes = Get("planes", &sz)) == NULL)
 		return 0;
@@ -151,6 +132,33 @@ LoadPlanes (void)
 	free (dplanes);
 
 	loadmap.allocsz += cnt * sizeof(*out);
+#endif
+	int sz, cnt, i;
+	void *dplanes;
+	struct mplane_s *out;
+
+	/* plane on disk:
+	 * double normal[3]
+	 * double dist
+	 */
+
+	if ((dplanes = Get("planes", &sz)) == NULL)
+		return 0;
+	cnt = sz / (4 * sizeof(double));
+
+	loadmap.planes = malloc(cnt * sizeof(*out));
+	loadmap.num_planes = cnt;
+	for (	i = 0, out = loadmap.planes;
+		i < cnt;
+		i++, out++ )
+	{
+		//...
+		out->type = PlaneType (out->normal);
+	}
+
+	free (dplanes);
+
+	loadmap.allocsz += cnt * sizeof(*out);
 
 	return 1;
 }
@@ -161,11 +169,13 @@ LoadVertices (void)
 {
 	int sz, i;
 
-	/* vertices can load directly; just need swapping */
+	/* vertex on disk:
+	 * double xyz[3]
+	 */
 
 	if ((loadmap.vertices = Get("vertices", &sz)) == NULL)
 		return 0;
-	loadmap.num_vertices = sz / sizeof(struct dvert_s);
+	loadmap.num_vertices = sz / (3 * sizeof(double));
 
 	for (i = 0; i < loadmap.num_vertices; i++)
 	{
@@ -185,17 +195,18 @@ LoadEdges (void)
 {
 	int sz, i;
 
-	/* edges can load directly; just need swapping */
+	/* edge on disk:
+	 * int v[2]
+	 */
 
 	if ((loadmap.edges = Get("edges", &sz)) == NULL)
 		return 0;
-	loadmap.num_edges = sz / sizeof(struct dedge_s);
+	loadmap.num_edges = sz / (2 * sizeof(int));
 
 	for (i = 0; i < loadmap.num_edges; i++)
 	{
 		loadmap.edges[i].v[0] = GetInt (&loadmap.edges[i].v[0]);
 		loadmap.edges[i].v[1] = GetInt (&loadmap.edges[i].v[1]);
-
 	}
 
 	loadmap.allocsz += sz;
@@ -209,7 +220,11 @@ LoadEdgeLoops (void)
 {
 	int sz, i;
 
-	/* edgeloops can load directly; just need swapping */
+#if 1
+return 1;
+#endif
+
+	/* edgeloops on disk are just int's */
 
 	if ((loadmap.edgeloops = Get("edgeloops", &sz)) == NULL)
 		return 0;
@@ -234,6 +249,14 @@ LoadSurfaces (void)
 static int
 LoadPortals (void)
 {
+#if 0
+/* unaligned, so we don't use the struct def directly */
+struct dportal_s
+{
+	int firstedge;
+	short numedges;
+};
+#endif
 	return 1;
 }
 
@@ -247,6 +270,23 @@ LoadNodes (void)
 
 static int
 LoadLeafs (void)
+{
+#if 0
+/* unaligned, so we don't use the struct def directly */
+struct dleaf_s
+{
+	int mins[3];
+	int maxs[3];
+	int firstsurface;
+	short numsurfaces;
+};
+#endif
+	return 1;
+}
+
+
+static int
+LoadTextures (void)
 {
 	return 1;
 }
@@ -300,6 +340,8 @@ Map_Load (const char *name)
 		goto error;
 	if (!LoadLeafs())
 		goto error;
+	if (!LoadTextures())
+		goto error;
 	//...
 	//...
 	//...
@@ -318,6 +360,10 @@ Map_Load (const char *name)
 
 error:
 	/* failure; keep the currently-loaded map running */
+
+	if (loadpak != NULL)
+		loadpak = Pak_Close (loadpak);
+	mapdir = NULL;
 
 	FreeMap (&loadmap);
 
