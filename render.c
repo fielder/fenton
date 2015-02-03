@@ -171,6 +171,114 @@ R_Clear (void)
 
 
 void
+R_DrawLine (int x1, int y1, int x2, int y2, int c)
+{
+	int x, y;
+	int dx, dy;
+	int sx, sy;
+	int ax, ay;
+	int d;
+
+	if (0)
+	{
+		if (	x1 < 0 || x1 >= video.w ||
+			x2 < 0 || x2 >= video.w ||
+			y1 < 0 || y1 >= video.h ||
+			y2 < 0 || y2 >= video.h )
+		{
+			return;
+		}
+	}
+
+	dx = x2 - x1;
+	ax = 2 * (dx < 0 ? -dx : dx);
+	sx = dx < 0 ? -1 : 1;
+
+	dy = y2 - y1;
+	ay = 2 * (dy < 0 ? -dy : dy);
+	sy = dy < 0 ? -1 : 1;
+
+	x = x1;
+	y = y1;
+
+	if (video.bpp == 16)
+	{
+		if (ax > ay)
+		{
+			d = ay - ax / 2;
+			while (1)
+			{
+				((unsigned short *)video.rows[y])[x] = c;
+				if (x == x2)
+					break;
+				if (d >= 0)
+				{
+					y += sy;
+					d -= ax;
+				}
+				x += sx;
+				d += ay;
+			}
+		}
+		else
+		{
+			d = ax - ay / 2;
+			while (1)
+			{
+				((unsigned short *)video.rows[y])[x] = c;
+				if (y == y2)
+					break;
+				if (d >= 0)
+				{
+					x += sx;
+					d -= ay;
+				}
+				y += sy;
+				d += ax;
+			}
+		}
+	}
+	else
+	{
+		if (ax > ay)
+		{
+			d = ay - ax / 2;
+			while (1)
+			{
+				((unsigned int *)video.rows[y])[x] = c;
+				if (x == x2)
+					break;
+				if (d >= 0)
+				{
+					y += sy;
+					d -= ax;
+				}
+				x += sx;
+				d += ay;
+			}
+		}
+		else
+		{
+			d = ax - ay / 2;
+			while (1)
+			{
+				((unsigned int *)video.rows[y])[x] = c;
+				if (y == y2)
+					break;
+				if (d >= 0)
+				{
+					x += sx;
+					d -= ay;
+				}
+				y += sy;
+				d += ax;
+			}
+		}
+	}
+}
+
+
+void
 R_Refresh (void)
 {
 	char spanbuf[0x8000];
@@ -185,6 +293,10 @@ R_Refresh (void)
 	Render3DPoint(10,0,0);
 	Render3DPoint(0,10,0);
 	Render3DPoint(0,0,10);
+	R_DrawLine(50,22,277,189,0x00ffffff);
+	R_DrawLine(50,30,277,197,0x000000ff);
+	R_DrawLine(50,38,277,205,0x0000ff00);
+	R_DrawLine(50,46,277,213,0x00ff0000);
 	if (1)
 	{
 		int i;

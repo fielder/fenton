@@ -62,6 +62,9 @@ extern void
 R_Clear (void);
 
 extern void
+R_DrawLine (int x1, int y1, int x2, int y2, int c);
+
+extern void
 R_Refresh (void);
 
 /* span stuff */

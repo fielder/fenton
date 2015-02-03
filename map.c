@@ -95,47 +95,10 @@ PlaneType (const double normal[3])
 static int
 LoadPlanes (void)
 {
-#if 0
-struct dplane_s
-{
-	double normal[3];
-	double dist;
-};
-#endif
-#if 0
-	int sz, cnt, i;
-	struct dplane_s *dplanes, *in;
-	struct mplane_s *out;
-
-	/* plane on disk:
-	 * double normal[3]
-	 * double dist
-	 */
-
-	if ((dplanes = Get("planes", &sz)) == NULL)
-		return 0;
-	cnt = sz / sizeof(*in);
-
-	loadmap.planes = malloc(cnt * sizeof(*out));
-	loadmap.num_planes = cnt;
-	for (	i = 0, in = dplanes, out = loadmap.planes;
-		i < cnt;
-		i++, in++, out++)
-	{
-		out->normal[0] = GetDouble (&in->normal[0]);
-		out->normal[1] = GetDouble (&in->normal[1]);
-		out->normal[2] = GetDouble (&in->normal[2]);
-		out->dist = GetDouble (&in->dist);
-		out->type = PlaneType (out->normal);
-	}
-
-	free (dplanes);
-
-	loadmap.allocsz += cnt * sizeof(*out);
-#endif
 	int sz, cnt, i;
 	void *dplanes;
 	struct mplane_s *out;
+	double *in;
 
 	/* plane on disk:
 	 * double normal[3]
@@ -148,11 +111,15 @@ struct dplane_s
 
 	loadmap.planes = malloc(cnt * sizeof(*out));
 	loadmap.num_planes = cnt;
-	for (	i = 0, out = loadmap.planes;
+
+	for (	i = 0, in = dplanes, out = loadmap.planes;
 		i < cnt;
-		i++, out++ )
+		i++, in += 4, out++ )
 	{
-		//...
+		out->normal[0] = GetDouble (&in[0]);
+		out->normal[1] = GetDouble (&in[1]);
+		out->normal[2] = GetDouble (&in[2]);
+		out->dist = GetDouble (&in[3]);
 		out->type = PlaneType (out->normal);
 	}
 
@@ -196,12 +163,12 @@ LoadEdges (void)
 	int sz, i;
 
 	/* edge on disk:
-	 * int v[2]
+	 * unsigned int v[2]
 	 */
 
 	if ((loadmap.edges = Get("edges", &sz)) == NULL)
 		return 0;
-	loadmap.num_edges = sz / (2 * sizeof(int));
+	loadmap.num_edges = sz / (2 * sizeof(unsigned int));
 
 	for (i = 0; i < loadmap.num_edges; i++)
 	{
@@ -219,10 +186,6 @@ static int
 LoadEdgeLoops (void)
 {
 	int sz, i;
-
-#if 1
-return 1;
-#endif
 
 	/* edgeloops on disk are just int's */
 
@@ -242,6 +205,7 @@ return 1;
 static int
 LoadSurfaces (void)
 {
+	//...
 	return 1;
 }
 
@@ -249,14 +213,35 @@ LoadSurfaces (void)
 static int
 LoadPortals (void)
 {
-#if 0
-/* unaligned, so we don't use the struct def directly */
-struct dportal_s
-{
-	int firstedge;
-	short numedges;
-};
-#endif
+	int sz, cnt, i, insz;
+	void *dportals;
+	struct mportal_s *out;
+	char *in;
+
+	/* portal on disk:
+	 * unsigned int edgeloop_start;
+	 * unsigned short numedges;
+	 */
+	insz = sizeof(unsigned int) + sizeof(unsigned short);
+
+	if ((dportals = Get("portals", &sz)) == NULL)
+		return 0;
+	cnt = sz / insz;
+
+	loadmap.portals = malloc(cnt * sizeof(*out));
+	loadmap.num_portals = cnt;
+	for (	i = 0, in = dportals, out = loadmap.portals;
+		i < cnt;
+		i++, in += insz, out++ )
+	{
+		out->edgeloop_start = GetInt (in);
+		out->numedges = GetShort (in + 4);
+	}
+
+	free (dportals);
+
+	loadmap.allocsz += cnt * sizeof(*out);
+
 	return 1;
 }
 
@@ -264,6 +249,7 @@ struct dportal_s
 static int
 LoadNodes (void)
 {
+	//...
 	return 1;
 }
 
@@ -271,16 +257,44 @@ LoadNodes (void)
 static int
 LoadLeafs (void)
 {
-#if 0
-/* unaligned, so we don't use the struct def directly */
-struct dleaf_s
-{
-	int mins[3];
-	int maxs[3];
-	int firstsurface;
-	short numsurfaces;
-};
-#endif
+	int sz, cnt, i, insz;
+	void *dleafs;
+	struct mleaf_s *out;
+	char *in;
+
+	/* leaf on disk:
+	 * int mins[3]
+	 * int maxs[3]
+	 * unsigned int firstsurface
+	 * unsigned short numsurfaces
+	 */
+	insz = (6 * sizeof(int)) + sizeof(unsigned int) + sizeof(unsigned short);
+
+	if ((dleafs = Get("leafs", &sz)) == NULL)
+		return 0;
+	cnt = sz / insz;
+
+	loadmap.leafs = malloc(cnt * sizeof(*out));
+	loadmap.num_leafs = cnt;
+
+	for (	i = 0, in = dleafs, out = loadmap.leafs;
+		i < cnt;
+		i++, in += insz, out++ )
+	{
+		out->mins[0] = GetInt (in + 0);
+		out->mins[1] = GetInt (in + 4);
+		out->mins[2] = GetInt (in + 8);
+		out->maxs[0] = GetInt (in + 12);
+		out->maxs[1] = GetInt (in + 16);
+		out->maxs[2] = GetInt (in + 20);
+		out->firstsurface = GetInt (in + 24);
+		out->numsurfaces = GetShort (in + 28);
+	}
+
+	free (dleafs);
+
+	loadmap.allocsz += cnt * sizeof(*out);
+
 	return 1;
 }
 
@@ -288,6 +302,7 @@ struct dleaf_s
 static int
 LoadTextures (void)
 {
+	//...
 	return 1;
 }
 

@@ -112,6 +112,8 @@ F_LoadMap (const char *name)
 		F_Log (" %d planes\n", map.num_planes);
 		F_Log (" %d vertices\n", map.num_vertices);
 		F_Log (" %d edges\n", map.num_edges);
+		F_Log (" %d portals\n", map.num_portals);
+		F_Log (" %d leafs\n", map.num_leafs);
 		F_Log (" %d bytes allocated\n", map.allocsz);
 	}
 }
@@ -130,7 +132,7 @@ F_Init (void)
 	w = 320;
 	h = 240;
 	bpp = 24;
-	scale = 3;
+	scale = 2;
 	full = 0;
 	IO_SetMode (w, h, bpp, scale, full);
 

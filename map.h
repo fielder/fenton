@@ -34,11 +34,10 @@ struct mvertex_s
 
 struct medge_s
 {
-	int v[2];
+	unsigned int v[2];
 };
 
 #if 0
-
 struct msurface_s
 {
 	/* texture-space vecs */
@@ -54,7 +53,9 @@ struct msurface_s
 
 	char align_padding[4]; /* to 48 bytes */
 };
+#endif
 
+#if 0
 struct mtexvecs_s
 {
 	double texvec_s[3];
@@ -65,8 +66,8 @@ struct mtexvecs_s
 /* portals are always stored on the front of the node plane */
 struct mportal_s
 {
-	int firstedge;
-	short numedges;
+	unsigned int edgeloop_start;
+	unsigned short numedges;
 	char align_padding[2]; /* to 8 bytes */
 };
 
@@ -92,8 +93,8 @@ struct mleaf_s
 {
 	int mins[3];
 	int maxs[3];
-	int firstsurface;
-	short numsurfaces;
+	unsigned int firstsurface;
+	unsigned short numsurfaces;
 	char align_padding[2]; /* to 32 bytes */
 };
 
