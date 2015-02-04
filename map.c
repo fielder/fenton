@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "bdat.h"
@@ -205,7 +206,41 @@ LoadEdgeLoops (void)
 static int
 LoadSurfaces (void)
 {
-	//...
+	int sz, cnt, i, insz;
+	void *dsurfs;
+	struct msurface_s *out;
+	char *in;
+
+	/* surface on disk:
+	 * unsigned int planenum
+	 * unsigned short is_backside
+	 * unsigned int edgeloop_start
+	 * unsigned short numedges
+	 */
+	insz = (2 * sizeof(unsigned int)) + (2 * sizeof(unsigned short));
+
+	if ((dsurfs = Get("surfaces", &sz)) == NULL)
+		return 0;
+	cnt = sz / insz;
+
+	loadmap.surfaces = malloc(cnt * sizeof(*out));
+	loadmap.num_surfaces = cnt;
+
+	for (	i = 0, in = dsurfs, out = loadmap.surfaces;
+		i < cnt;
+		i++, in += insz, out++ )
+	{
+		out->plane = GetInt (in + 0);
+		out->is_backside = GetShort (in + 4);
+		out->edgeloop_start = GetInt (in + 6);
+		out->numedges = GetShort (in + 10);
+		out->color = ((uintptr_t)out >> 4) & 0x00ffffff;
+	}
+
+	free (dsurfs);
+
+	loadmap.allocsz += cnt * sizeof(*out);
+
 	return 1;
 }
 
@@ -219,8 +254,8 @@ LoadPortals (void)
 	char *in;
 
 	/* portal on disk:
-	 * unsigned int edgeloop_start;
-	 * unsigned short numedges;
+	 * unsigned int edgeloop_start
+	 * unsigned short numedges
 	 */
 	insz = sizeof(unsigned int) + sizeof(unsigned short);
 
@@ -234,7 +269,7 @@ LoadPortals (void)
 		i < cnt;
 		i++, in += insz, out++ )
 	{
-		out->edgeloop_start = GetInt (in);
+		out->edgeloop_start = GetInt (in + 0);
 		out->numedges = GetShort (in + 4);
 	}
 
@@ -357,9 +392,6 @@ Map_Load (const char *name)
 		goto error;
 	if (!LoadTextures())
 		goto error;
-	//...
-	//...
-	//...
 
 	if (loadpak != NULL)
 		loadpak = Pak_Close (loadpak);

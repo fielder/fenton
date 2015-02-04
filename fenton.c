@@ -114,6 +114,7 @@ F_LoadMap (const char *name)
 		F_Log (" %d edges\n", map.num_edges);
 		F_Log (" %d portals\n", map.num_portals);
 		F_Log (" %d leafs\n", map.num_leafs);
+		F_Log (" %d surfaces\n", map.num_surfaces);
 		F_Log (" %d bytes allocated\n", map.allocsz);
 	}
 }
@@ -256,6 +257,14 @@ RunInput (void)
 			F_Log ("left: (%g %g %g)\n", camera.left[0], camera.left[1], camera.left[2]);
 			F_Log ("up: (%g %g %g)\n", camera.up[0], camera.up[1], camera.up[2]);
 			F_Log ("forward: (%g %g %g)\n", camera.forward[0], camera.forward[1], camera.forward[2]);
+			F_Log ("left: acc %d %d %d\n",camera.vplanes[0].accept[0],camera.vplanes[0].accept[1],camera.vplanes[0].accept[2]);
+			F_Log ("      rej %d %d %d\n",camera.vplanes[0].reject[0],camera.vplanes[0].reject[1],camera.vplanes[0].reject[2]);
+			F_Log ("righ: acc %d %d %d\n",camera.vplanes[1].accept[0],camera.vplanes[1].accept[1],camera.vplanes[1].accept[2]);
+			F_Log ("      rej %d %d %d\n",camera.vplanes[1].reject[0],camera.vplanes[1].reject[1],camera.vplanes[1].reject[2]);
+			F_Log ("top:  acc %d %d %d\n",camera.vplanes[2].accept[0],camera.vplanes[2].accept[1],camera.vplanes[2].accept[2]);
+			F_Log ("      rej %d %d %d\n",camera.vplanes[2].reject[0],camera.vplanes[2].reject[1],camera.vplanes[2].reject[2]);
+			F_Log ("bott: acc %d %d %d\n",camera.vplanes[3].accept[0],camera.vplanes[3].accept[1],camera.vplanes[3].accept[2]);
+			F_Log ("      rej %d %d %d\n",camera.vplanes[3].reject[0],camera.vplanes[3].reject[1],camera.vplanes[3].reject[2]);
 			F_Log ("\n");
 		}
 	}

@@ -86,8 +86,6 @@ Data_Free (void *dat)
 void *
 Data_Fetch (const char *name, int *size)
 {
-	/* try a file first */
-
 	struct datasource_s *src;
 
 	for (src = sources.next; src != NULL; src = src->next)

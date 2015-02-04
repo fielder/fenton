@@ -44,6 +44,7 @@ struct camera_s
 	struct viewplane_s vplanes[4];
 };
 
+extern char * const vplane_names[4];
 extern struct camera_s camera;
 
 extern void
@@ -83,5 +84,10 @@ R_Span_BeginFrame (void *buf, int buflen);
 
 extern void
 R_Span_DrawGSpans (void);
+
+/* world traverse */
+
+extern void
+R_DrawWorld (void);
 
 #endif /* __RENDER_H__ */

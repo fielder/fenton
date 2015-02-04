@@ -37,23 +37,21 @@ struct medge_s
 	unsigned int v[2];
 };
 
-#if 0
 struct msurface_s
 {
 	/* texture-space vecs */
-	double texorg[3];
-	int texvecs;
+	//double texorg[3];
+	//int texvecs;
 
-	int plane;
-	int firstedge; /* in edge loops */
-	short numedges;
+	unsigned int plane;
+	unsigned int edgeloop_start;
+	unsigned short numedges;
 	short is_backside;
 
-	int texnum;
+	unsigned int color;//texnum;
 
-	char align_padding[4]; /* to 48 bytes */
+	//char align_padding[4]; /* to 48 bytes */
 };
-#endif
 
 #if 0
 struct mtexvecs_s
@@ -71,23 +69,23 @@ struct mportal_s
 	char align_padding[2]; /* to 8 bytes */
 };
 
-#if 0
 /* nodes are always stored on the front of the plane */
 struct mnode_s
 {
 	int mins[3];
 	int maxs[3];
 	void *children[2];
-	int plane;
-	int firstsurf_front;
-	int firstsurf_back;
-	int firstportal;
-	short numsurfs_front;
-	short numsurfs_back;
-	short numportals;
+#if 0
+	unsigned int plane;
+	unsigned int firstsurf_front;
+	unsigned int firstsurf_back;
+	unsigned int firstportal;
+	unsigned short numsurfs_front;
+	unsigned short numsurfs_back;
+	unsigned short numportals;
 //	char align_padding[6]; /* to 72 bytes */
-};
 #endif
+};
 
 struct mleaf_s
 {
@@ -116,14 +114,14 @@ struct map_s
 	int *edgeloops;
 	int num_loopedges;
 
-//	struct msurface_s *surfaces;
-//	int num_surfaces;
+	struct msurface_s *surfaces;
+	int num_surfaces;
 
 	struct mportal_s *portals;
 	int num_portals;
 
-//	struct mnode_s *nodes;
-//	int num_nodes;
+	struct mnode_s *nodes;
+	int num_nodes;
 
 	struct mleaf_s *leafs;
 	int num_leafs;

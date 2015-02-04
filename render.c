@@ -1,5 +1,6 @@
 #include <string.h>
 #include <math.h>
+#include <stdint.h>
 
 //#include "rdata.h"
 #include "map.h"
@@ -7,6 +8,7 @@
 #include "vec.h"
 #include "render.h"
 
+char * const vplane_names[4] = { "left", "right", "top", "bottom" };
 static const double fov_x = 90.0;
 
 struct camera_s camera;
@@ -61,32 +63,62 @@ R_CalcViewXForm (void)
 }
 
 
+/*
+ * At the start of each frame render we classify each viewplane by
+ * the direction of its normal. This classification tells which bbox
+ * corner the plane points to. This is used to check for bboxes that
+ * are fully in front of a viewplane (trivially accept nodes and reduce
+ * clip checks). The opposite bbox corner is used to check when the bbox
+ * is fully behind the plane (trivially rejected nodes/leafs terminate
+ * tree traversal for that node).
+ */
+
+/* indices of a bbox, taken as a straight array of 6 values */
+#define MINX 0
+#define MINY 1
+#define MINZ 2
+#define MAXX 3
+#define MAXY 4
+#define MAXZ 5
 static const int _bboxmap[8][3] = {
-	{ 0, 0, 0 },
-	{ 1, 0, 0 },
-	{ 0, 1, 0 },
-	{ 1, 1, 0 },
-	{ 0, 0, 1 },
-	{ 1, 0, 1 },
-	{ 0, 1, 1 },
-	{ 1, 1, 1 },
+	{ MINX, MINY, MINZ },
+	{ MAXX, MINY, MINZ },
+	{ MINX, MAXY, MINZ },
+	{ MAXX, MAXY, MINZ },
+	{ MINX, MINY, MAXZ },
+	{ MAXX, MINY, MAXZ },
+	{ MINX, MAXY, MAXZ },
+	{ MAXX, MAXY, MAXZ },
 };
+#undef MINX
+#undef MINY
+#undef MINZ
+#undef MAXX
+#undef MAXY
+#undef MAXZ
 
 
 static void
 CalcAcceptReject (struct viewplane_s *p)
 {
-	int acc_idx =	((p->normal[0] < 0.0) << 0) +
-			((p->normal[1] < 0.0) << 1) +
-			((p->normal[2] < 0.0) << 2);
+	int planeclass =	((p->normal[0] < 0.0) << 0) +
+				((p->normal[1] < 0.0) << 1) +
+				((p->normal[2] < 0.0) << 2);
 
-	p->accept[0] = _bboxmap[acc_idx][0];
-	p->accept[1] = _bboxmap[acc_idx][1];
-	p->accept[2] = _bboxmap[acc_idx][2];
+	/* The fully-accept corner. If this corner is in front of a
+	 * plane then the whole bbox (and its contents) are in front of
+	 * the plane.
+	 */
+	p->accept[0] = _bboxmap[planeclass][0];
+	p->accept[1] = _bboxmap[planeclass][1];
+	p->accept[2] = _bboxmap[planeclass][2];
 
-	p->reject[0] = _bboxmap[7 - acc_idx][0];
-	p->reject[1] = _bboxmap[7 - acc_idx][1];
-	p->reject[2] = _bboxmap[7 - acc_idx][2];
+	/* The fully-reject corner. If this corner is behind a plane
+	 * then the whole bbox (and its contents) are behind the plane.
+	 */
+	p->reject[0] = _bboxmap[7 - planeclass][0];
+	p->reject[1] = _bboxmap[7 - planeclass][1];
+	p->reject[2] = _bboxmap[7 - planeclass][2];
 }
 
 
@@ -281,13 +313,11 @@ R_DrawLine (int x1, int y1, int x2, int y2, int c)
 void
 R_Refresh (void)
 {
-	char spanbuf[0x8000];
-
 	R_Clear ();
 
 	CalcViewPlanes ();
 
-	R_Span_BeginFrame (spanbuf, sizeof(spanbuf));
+	R_DrawWorld ();
 
 	Render3DPoint(0,0,0);
 	Render3DPoint(10,0,0);
