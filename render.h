@@ -63,12 +63,22 @@ extern void
 R_Clear (void);
 
 extern void
+R_3DPoint (double x, double y, double z);
+
+extern void
 R_DrawLine (int x1, int y1, int x2, int y2, int c);
 
 extern void
 R_Refresh (void);
 
 /* span stuff */
+
+/* emitted polygon span */
+struct drawspan_s
+{
+	short u, v;
+	short len;
+};
 
 extern void
 R_Span_Init (void);

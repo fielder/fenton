@@ -322,6 +322,7 @@ LoadLeafs (void)
 		out->maxs[0] = GetInt (in + 12);
 		out->maxs[1] = GetInt (in + 16);
 		out->maxs[2] = GetInt (in + 20);
+		out->flags = NODEFL_LEAF;
 		out->firstsurface = GetInt (in + 24);
 		out->numsurfaces = GetShort (in + 28);
 	}

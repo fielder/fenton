@@ -1,5 +1,5 @@
 //#include <string.h>
-//#include <stdint.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 //#include "r_defs.h"
@@ -13,10 +13,8 @@ struct gspan_s
 	short left, right;
 };
 
-/*
 struct drawspan_s *r_spans = NULL;
 static struct drawspan_s *r_spans_end = NULL;
-*/
 
 static struct gspan_s *r_gspans = NULL;
 static struct gspan_s *r_gspans_pool = NULL;
@@ -35,10 +33,10 @@ R_Span_Init (void)
 
 	/* we're using integers rather than pointers, ensure our 'null'
 	 * isn't used (0xffff) */
-	if (count >= 0xffff)
-		count = 0xffff - 1;
+	if (count > 0xffff)
+		count = 0xffff;
 
-	r_gspans = malloc (sizeof(*r_gspans) * count);
+	r_gspans = malloc (count * sizeof(*r_gspans));
 
 	/* The first handful are reserved as each row's gspan
 	 * list head. ie: one element per screen row just for
@@ -46,10 +44,11 @@ R_Span_Init (void)
 	for (i = 0; i < video.h; i++)
 		r_gspans[i].prev = r_gspans[i].next = i;
 
+	/* set up the pool */
 	r_gspans_pool = r_gspans + i;
 	while (i < count)
 	{
-		r_gspans[i].next = (i == count - 1) ? NULL : &r_gspans[i + 1];
+		r_gspans[i].next = (i == count - 1) ? 0xffff : i + 1;
 		i++;
 	}
 }
@@ -67,7 +66,6 @@ R_Span_Cleanup (void)
 }
 
 
-#if 0
 static void
 PushSpan (short y, short x1, short x2)
 {
@@ -79,7 +77,6 @@ PushSpan (short y, short x1, short x2)
 		r_spans++;
 	}
 }
-#endif
 
 
 void
@@ -155,7 +152,6 @@ R_Span_ClipAndEmit (int y, int x1, int x2)
 void
 R_Span_BeginFrame (void *buf, int buflen)
 {
-#if 0
 	/* prepare the given span buffer */
 	uintptr_t p = (uintptr_t)buf;
 	int i;
@@ -172,8 +168,9 @@ R_Span_BeginFrame (void *buf, int buflen)
 	/* now gspans */
 	struct gspan_s *gs, *head, *next;
 
-	for (i = 0, head = r_gspans; i < r_vars.h; i++, head++)
+	for (i = 0, head = r_gspans; i < video.h; i++, head++)
 	{
+#if 0
 		/* take any gspan still remaining on the row and toss
 		 * back into the pool */
 		while ((next = head->next) != head)
@@ -189,11 +186,11 @@ R_Span_BeginFrame (void *buf, int buflen)
 		r_gspans_pool = gs->next;
 
 		gs->left = 0;
-		gs->right = r_vars.w - 1;
+		gs->right = video.w - 1;
 		gs->prev = gs->next = head;
 		head->prev = head->next = gs;
-	}
 #endif
+	}
 }
 
 

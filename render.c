@@ -171,8 +171,8 @@ CalcViewPlanes (void)
 }
 
 
-static void
-Render3DPoint (double x, double y, double z)
+void
+R_3DPoint (double x, double y, double z)
 {
 	double v[3], local[3], out[3];
 
@@ -319,10 +319,10 @@ R_Refresh (void)
 
 	R_DrawWorld ();
 
-	Render3DPoint(0,0,0);
-	Render3DPoint(10,0,0);
-	Render3DPoint(0,10,0);
-	Render3DPoint(0,0,10);
+	R_3DPoint(0,0,0);
+	R_3DPoint(10,0,0);
+	R_3DPoint(0,10,0);
+	R_3DPoint(0,0,10);
 	R_DrawLine(50,22,277,189,0x00ffffff);
 	R_DrawLine(50,30,277,197,0x000000ff);
 	R_DrawLine(50,38,277,205,0x0000ff00);
@@ -331,6 +331,6 @@ R_Refresh (void)
 	{
 		int i;
 		for (i = 0; i < map.num_vertices; i++)
-			Render3DPoint(map.vertices[i].xyz[0],map.vertices[i].xyz[1],map.vertices[i].xyz[2]);
+			R_3DPoint(map.vertices[i].xyz[0],map.vertices[i].xyz[1],map.vertices[i].xyz[2]);
 	}
 }
