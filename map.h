@@ -79,17 +79,14 @@ struct mnode_s
 	unsigned short flags;
 	short pad;
 	unsigned int plane;
-#if 0
 	void *children[2];
-	unsigned int plane;
-	unsigned int firstsurf_front;
-	unsigned int firstsurf_back;
+	unsigned int front_firstsurface;
+	unsigned int back_firstsurface;
 	unsigned int firstportal;
-	unsigned short numsurfs_front;
-	unsigned short numsurfs_back;
+	unsigned short front_numsurfs;
+	unsigned short back_numsurfs;
 	unsigned short numportals;
-//	char align_padding[6]; /* to 72 bytes */
-#endif
+	char align_padding[6]; /* to 72 bytes */
 };
 
 struct mleaf_s

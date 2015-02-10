@@ -4,41 +4,141 @@
 #include "map.h"
 #include "render.h"
 
+#define SURF_BACKFACE_EPSILON 0.01
+
+
+extern void
+R_GenSpansForSurfaces (unsigned int first, int count, int cplanes[4], int numcplanes);
+
+extern int
+R_CheckPortalVisibility (struct mportal_s *portal, int reversewinding);
+
+extern void
+R_Surf_BeginFrame (void *surfbuf, int surfbufsize, void *edgebuf, int edgebufsize);
 
 static void
-DrawSurface (struct msurface_s *s, int cplanes[4], int numcplanes)
+VisitNodeRecursive (void *visit, int cplanes[4], int numcplanes);
+
+
+static void
+VisitLeaf (struct mleaf_s *leaf, int cplanes[4], int numcplanes)
 {
+	R_GenSpansForSurfaces (leaf->firstsurface, leaf->numsurfaces, cplanes, numcplanes);
 }
 
 
 static void
-VisitNode (void *node, int cplanes[4], int numcplanes)
+VisitNode (struct mnode_s *node, int cplanes[4], int numcplanes)
+{
+	double dist;
+	int side;
+
+	/* find which side of the plane the camera is on */
+	{
+		struct mplane_s *pl = &map.planes[node->plane];
+		if (pl->type == NORMAL_X)
+			dist = camera.pos[0] - pl->dist;
+		else if (pl->type == NORMAL_NEGX)
+			dist = -pl->dist - camera.pos[0];
+		else if (pl->type == NORMAL_Y)
+			dist = camera.pos[1] - pl->dist;
+		else if (pl->type == NORMAL_NEGY)
+			dist = -pl->dist - camera.pos[1];
+		else if (pl->type == NORMAL_Z)
+			dist = camera.pos[2] - pl->dist;
+		else if (pl->type == NORMAL_NEGZ)
+			dist = -pl->dist - camera.pos[2];
+		else
+			dist = Vec_Dot(camera.pos, pl->normal) - pl->dist;
+		side = dist < 0.0;
+	}
+
+	int portal_visible = 0;
+
+	if (side == 0)
+	{
+		VisitNodeRecursive (node->children[0], cplanes, numcplanes);
+
+		if (dist > SURF_BACKFACE_EPSILON)
+		{
+			struct mportal_s *portal;
+			int i;
+
+			R_GenSpansForSurfaces (	node->front_firstsurface,
+						node->front_numsurfs,
+						cplanes,
+						numcplanes );
+
+			for (	i = 0, portal = map.portals + node->firstportal;
+				i < node->numportals;
+				i++, portal++ )
+			{
+				if (R_CheckPortalVisibility(portal, 0))
+				{
+					portal_visible = 1;
+					break;
+				}
+			}
+		}
+		else
+		{
+		//FIXME: Probaly will have cases where we don't scan
+		//out portals because we're right on it, and therefore
+		//never descend down the far side of the node
+		//May have to always descend the far side if we're on
+		//the node.
+		//play with this...
+			//portal_visible = 1;
+		}
+	}
+	else
+	{
+		//...
+		//...
+		//...
+	}
+
+	/* go down back side only if a portal is visible */
+	if (portal_visible)
+		VisitNodeRecursive (node->children[!side], cplanes, numcplanes);
+}
+
+
+static void
+VisitNodeRecursive (void *visit, int cplanes[4], int numcplanes)
 {
 	int planes[4];
 	int planecnt = 0;
-	unsigned short flags = ((unsigned short *)node)[24];
+	unsigned short flags = ((unsigned short *)visit)[12];
 
 	if (numcplanes)
 	{
 		struct viewplane_s *vp;
-		int *bounds = node;
-		double p[3];
+		double bboxcorner[3];
 		int vplaneidx;
 		while (numcplanes-- > 0)
 		{
 			vplaneidx = cplanes[numcplanes];
 			vp = &camera.vplanes[vplaneidx];
 
-			p[0] = bounds[vp->reject[0]];
-			p[1] = bounds[vp->reject[1]];
-			p[2] = bounds[vp->reject[2]];
-			if (Vec_Dot(p, vp->normal) - vp->dist <= 0.0)
+			bboxcorner[0] = ((int *)visit)[vp->reject[0]];
+			bboxcorner[1] = ((int *)visit)[vp->reject[1]];
+			bboxcorner[2] = ((int *)visit)[vp->reject[2]];
+			if (Vec_Dot(bboxcorner, vp->normal) - vp->dist <= 0.0)
+			{
+				/* bbox is entirely behind a viewplane */
 				return;
+			}
 
-			p[0] = bounds[vp->accept[0]];
-			p[1] = bounds[vp->accept[1]];
-			p[2] = bounds[vp->accept[2]];
-			if (Vec_Dot(p, vp->normal) - vp->dist < 0.0)
+			bboxcorner[0] = ((int *)visit)[vp->accept[0]];
+			bboxcorner[1] = ((int *)visit)[vp->accept[1]];
+			bboxcorner[2] = ((int *)visit)[vp->accept[2]];
+			if (Vec_Dot(bboxcorner, vp->normal) - vp->dist >= 0.0)
+			{
+				/* bbox is entirely infront of a viewplane;
+				 * won't get added to the active plane set */
+			}
+			else
 			{
 				/* bbox intersects the plane, keep it
 				 * in the clip plane list */
@@ -48,50 +148,26 @@ VisitNode (void *node, int cplanes[4], int numcplanes)
 	}
 
 	if ((flags & NODEFL_LEAF) == NODEFL_LEAF)
-	{
-		struct mleaf_s *leaf = node;
-		struct msurface_s *s;
-		int i;
-		for (	i = 0, s = map.surfaces + leaf->firstsurface;
-			i < leaf->numsurfaces;
-			i++, s++ )
-		{
-			DrawSurface (s, planes, planecnt);
-		}
-		return;
-	}
-
-	//int node_visible = 0;
-
-	//int node_seethrough = 0;
-	// check plane side
-	// recurse front
-	// if node surfaces:
-	// 	make plane list
-	// 	for all surfs:
-	// 		if backfacing continue
-	// 		if portal:
-	// 			if !node_seethrough: node_seethrough = checkportal()
-	// 		else:
-	// 			draw surface
-	//if (node_seethrough)
-	//	; // recurse back
+		VisitLeaf (visit, planes, planecnt);
+	else
+		VisitNode (visit, planes, planecnt);
 }
 
 
 void
 R_DrawWorld (void)
 {
+	//char spanbuf[32 * 1024];
+	char surfacebuf[32 * 1024];
+	char edgebuf[32 * 1024];
+
 	int planes[4] = { 0, 1, 2, 3 };
 
-	char spanbuf[32 * 1024];
-	//char surfacebuf[32 * 1024];
-	//char edgebuf[32 * 1024];
-
-	R_Span_BeginFrame (spanbuf, sizeof(spanbuf));
+	R_Surf_BeginFrame (surfacebuf, sizeof(surfacebuf), edgebuf, sizeof(edgebuf));
+	//R_Span_BeginFrame (spanbuf, sizeof(spanbuf));
 
 	if (map.num_nodes > 0)
-		VisitNode (map.nodes, planes, 4);
+		VisitNodeRecursive (map.nodes, planes, 4);
 	else if (map.num_leafs > 0)
-		VisitNode (map.leafs, planes, 4);
+		VisitNodeRecursive (map.leafs, planes, 4);
 }

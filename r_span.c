@@ -9,7 +9,7 @@
 /* green span */
 struct gspan_s
 {
-	unsigned short prev, next;
+	unsigned short previdx, nextidx;
 	short left, right;
 };
 
@@ -42,13 +42,13 @@ R_Span_Init (void)
 	 * list head. ie: one element per screen row just for
 	 * linked-list management. */
 	for (i = 0; i < video.h; i++)
-		r_gspans[i].prev = r_gspans[i].next = i;
+		r_gspans[i].previdx = r_gspans[i].nextidx = i;
 
 	/* set up the pool */
 	r_gspans_pool = r_gspans + i;
 	while (i < count)
 	{
-		r_gspans[i].next = (i == count - 1) ? 0xffff : i + 1;
+		r_gspans[i].nextidx = (i == count - 1) ? 0xffff : i + 1;
 		i++;
 	}
 }
@@ -152,9 +152,17 @@ R_Span_ClipAndEmit (int y, int x1, int x2)
 void
 R_Span_BeginFrame (void *buf, int buflen)
 {
+	uintptr_t start, end;
+
+	start = (uintptr_t)surfbuf;
+	end = start + surfbuflen;
+//	start = (start + cachelinesize - 1) - ((start + cachelinesize - 1) % cachelinesize);
+//	end -= (end - start) % sizeof(struct drawsurf_s);
+//	surfs = (struct drawsurf_s *)start;
+//	surfs_end = (struct drawsurf_s *)end;
+#if 0
 	/* prepare the given span buffer */
 	uintptr_t p = (uintptr_t)buf;
-	int i;
 
 	while ((p % sizeof(struct drawspan_s)) != 0)
 	{
@@ -164,15 +172,17 @@ R_Span_BeginFrame (void *buf, int buflen)
 
 	r_spans = (struct drawspan_s *)p;
 	r_spans_end = r_spans + (buflen / sizeof(struct drawspan_s));
+#endif
 
 	/* now gspans */
 	struct gspan_s *gs, *head, *next;
+	int i;
 
 	for (i = 0, head = r_gspans; i < video.h; i++, head++)
 	{
-#if 0
 		/* take any gspan still remaining on the row and toss
 		 * back into the pool */
+#if 0
 		while ((next = head->next) != head)
 		{
 			head->next = next->next;

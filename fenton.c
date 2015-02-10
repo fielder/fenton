@@ -114,6 +114,7 @@ F_LoadMap (const char *name)
 		F_Log (" %d edges\n", map.num_edges);
 		F_Log (" %d portals\n", map.num_portals);
 		F_Log (" %d leafs\n", map.num_leafs);
+		F_Log (" %d nodes\n", map.num_nodes);
 		F_Log (" %d surfaces\n", map.num_surfaces);
 		F_Log (" %d bytes allocated\n", map.allocsz);
 	}

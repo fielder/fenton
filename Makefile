@@ -16,7 +16,8 @@ OBJS =	$(OBJDIR)/bdat.o \
 	$(OBJDIR)/fenton.o \
 	$(OBJDIR)/r_span.o \
 	$(OBJDIR)/r_bsp.o \
-	$(OBJDIR)/map.o
+	$(OBJDIR)/map.o \
+	$(OBJDIR)/r_poly.o \
 
 all: $(TARGET)
 
@@ -48,4 +49,6 @@ $(OBJDIR)/r_span.o: r_span.c
 $(OBJDIR)/r_bsp.o: r_bsp.c
 	$(CC) -c $(CFLAGS) $? -o $@
 $(OBJDIR)/map.o: map.c
+	$(CC) -c $(CFLAGS) $? -o $@
+$(OBJDIR)/r_poly.o: r_poly.c
 	$(CC) -c $(CFLAGS) $? -o $@
