@@ -22,14 +22,15 @@ struct drawsurf_s
 
 struct drawedge_s
 {
-	char blah[32];
 #if 0
 	struct medge_s *owner;
 	struct drawedge_s *next; /* in v-sorted list of edges for the poly */
+#endif
 
 	int top, bottom;
 	int u, du; /* 12.20 fixed-point format */
 
+#if 0
 	int is_right;
 #endif
 };

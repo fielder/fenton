@@ -21,11 +21,14 @@ FreeMap (struct map_s *m)
 		free (m->edges);
 	if (m->edgeloops != NULL)
 		free (m->edgeloops);
+	if (m->surfaces != NULL)
+		free (m->surfaces);
 	if (m->portals != NULL)
 		free (m->portals);
+	if (m->nodes != NULL)
+		free (m->nodes);
 	if (m->leafs != NULL)
 		free (m->leafs);
-	//...
 
 	memset (m, 0, sizeof(*m));
 }
@@ -93,40 +96,39 @@ PlaneType (const double normal[3])
 }
 
 
+struct dplane_s
+{
+	double normal[3];
+	double dist;
+} __attribute__ ((packed));
+
 static int
 LoadPlanes (void)
 {
-	int sz, cnt, i;
-	void *dplanes;
+	int sz, cnt;
+	struct dplane_s *dplanes, *in;
 	struct mplane_s *out;
-	double *in;
-
-	/* plane on disk:
-	 * double normal[3]
-	 * double dist
-	 */
 
 	if ((dplanes = Get("planes", &sz)) == NULL)
 		return 0;
-	cnt = sz / (4 * sizeof(double));
+	cnt = sz / sizeof(*in);
 
 	loadmap.planes = malloc(cnt * sizeof(*out));
+	loadmap.allocsz += cnt * sizeof(*out);
 	loadmap.num_planes = cnt;
 
-	for (	i = 0, in = dplanes, out = loadmap.planes;
-		i < cnt;
-		i++, in += 4, out++ )
+	for (	in = dplanes, out = loadmap.planes;
+		cnt > 0;
+		cnt--, in++, out++ )
 	{
-		out->normal[0] = GetDouble (&in[0]);
-		out->normal[1] = GetDouble (&in[1]);
-		out->normal[2] = GetDouble (&in[2]);
-		out->dist = GetDouble (&in[3]);
+		out->normal[0] = GetDouble (&in->normal[0]);
+		out->normal[1] = GetDouble (&in->normal[1]);
+		out->normal[2] = GetDouble (&in->normal[2]);
+		out->dist = GetDouble (&in->dist);
 		out->type = PlaneType (out->normal);
 	}
 
 	free (dplanes);
-
-	loadmap.allocsz += cnt * sizeof(*out);
 
 	return 1;
 }
@@ -137,13 +139,14 @@ LoadVertices (void)
 {
 	int sz, i;
 
-	/* vertex on disk:
+	/* vertex on disk is the same as what we keep in memory:
 	 * double xyz[3]
 	 */
 
 	if ((loadmap.vertices = Get("vertices", &sz)) == NULL)
 		return 0;
-	loadmap.num_vertices = sz / (3 * sizeof(double));
+	loadmap.allocsz += sz;
+	loadmap.num_vertices = sz / sizeof(*loadmap.vertices);
 
 	for (i = 0; i < loadmap.num_vertices; i++)
 	{
@@ -152,32 +155,40 @@ LoadVertices (void)
 		loadmap.vertices[i].xyz[2] = GetDouble (&loadmap.vertices[i].xyz[2]);
 	}
 
-	loadmap.allocsz += sz;
-
 	return 1;
 }
 
 
+struct dedge_s
+{
+	unsigned int v[2];
+} __attribute__ ((packed));
+
 static int
 LoadEdges (void)
 {
-	int sz, i;
+	int sz, cnt;
+	struct dedge_s *dedges, *in;
+	struct medge_s *out;
 
-	/* edge on disk:
-	 * unsigned int v[2]
-	 */
-
-	if ((loadmap.edges = Get("edges", &sz)) == NULL)
+	if ((dedges = Get("edges", &sz)) == NULL)
 		return 0;
-	loadmap.num_edges = sz / (2 * sizeof(unsigned int));
+	cnt = sz / sizeof(*in);
 
-	for (i = 0; i < loadmap.num_edges; i++)
+	loadmap.edges = malloc(cnt * sizeof(*out));
+	loadmap.allocsz += cnt * sizeof(*out);
+	loadmap.num_edges = cnt;
+
+	for (	in = dedges, out = loadmap.edges;
+		cnt > 0;
+		cnt--, in++, out++ )
 	{
-		loadmap.edges[i].v[0] = GetInt (&loadmap.edges[i].v[0]);
-		loadmap.edges[i].v[1] = GetInt (&loadmap.edges[i].v[1]);
+		out->v[0] = GetInt (&in->v[0]);
+		out->v[1] = GetInt (&in->v[1]);
+		out->cachenum = 0;
 	}
 
-	loadmap.allocsz += sz;
+	free (dedges);
 
 	return 1;
 }
@@ -192,90 +203,86 @@ LoadEdgeLoops (void)
 
 	if ((loadmap.edgeloops = Get("edgeloops", &sz)) == NULL)
 		return 0;
+	loadmap.allocsz += sz;
 	loadmap.num_loopedges = sz / sizeof(*loadmap.edgeloops);
 
 	for (i = 0; i < loadmap.num_loopedges; i++)
 		loadmap.edgeloops[i] = GetInt (&loadmap.edgeloops[i]);
 
-	loadmap.allocsz += sz;
-
 	return 1;
 }
 
+
+struct dsurface_s
+{
+	unsigned int planenum;
+	unsigned short is_backside;
+	unsigned int edgeloop_start;
+	unsigned short numedges;
+} __attribute__ ((packed));
 
 static int
 LoadSurfaces (void)
 {
-	int sz, cnt, i, insz;
-	void *dsurfs;
+	int sz, cnt;
+	struct dsurface_s *dsurfaces, *in;
 	struct msurface_s *out;
-	char *in;
 
-	/* surface on disk:
-	 * unsigned int planenum
-	 * unsigned short is_backside
-	 * unsigned int edgeloop_start
-	 * unsigned short numedges
-	 */
-	insz = (2 * sizeof(unsigned int)) + (2 * sizeof(unsigned short));
-
-	if ((dsurfs = Get("surfaces", &sz)) == NULL)
+	if ((dsurfaces = Get("surfaces", &sz)) == NULL)
 		return 0;
-	cnt = sz / insz;
+	cnt = sz / sizeof(*in);
 
 	loadmap.surfaces = malloc(cnt * sizeof(*out));
+	loadmap.allocsz += cnt * sizeof(*out);
 	loadmap.num_surfaces = cnt;
 
-	for (	i = 0, in = dsurfs, out = loadmap.surfaces;
-		i < cnt;
-		i++, in += insz, out++ )
+	for (	in = dsurfaces, out = loadmap.surfaces;
+		cnt > 0;
+		cnt--, in++, out++ )
 	{
-		out->plane = GetInt (in + 0);
-		out->is_backside = GetShort (in + 4);
-		out->edgeloop_start = GetInt (in + 6);
-		out->numedges = GetShort (in + 10);
+		out->plane = GetInt (&in->planenum);
+		out->is_backside = GetShort (&in->is_backside);
+		out->edgeloop_start = GetInt (&in->edgeloop_start);
+		out->numedges = GetShort (&in->numedges);
 		out->color = ((uintptr_t)out >> 4) & 0x00ffffff;
 	}
 
-	free (dsurfs);
-
-	loadmap.allocsz += cnt * sizeof(*out);
+	free (dsurfaces);
 
 	return 1;
 }
 
 
+struct dportal_s
+{
+	unsigned int edgeloop_start;
+	unsigned short numedges;
+} __attribute__ ((packed));
+
 static int
 LoadPortals (void)
 {
-	int sz, cnt, i, insz;
-	void *dportals;
+	int sz, cnt;
+	struct dportal_s *dportals, *in;
 	struct mportal_s *out;
-	char *in;
-
-	/* portal on disk:
-	 * unsigned int edgeloop_start
-	 * unsigned short numedges
-	 */
-	insz = sizeof(unsigned int) + sizeof(unsigned short);
 
 	if ((dportals = Get("portals", &sz)) == NULL)
 		return 0;
-	cnt = sz / insz;
+	cnt = sz / sizeof(*in);
 
 	loadmap.portals = malloc(cnt * sizeof(*out));
+	loadmap.allocsz += cnt * sizeof(*out);
 	loadmap.num_portals = cnt;
-	for (	i = 0, in = dportals, out = loadmap.portals;
-		i < cnt;
-		i++, in += insz, out++ )
+
+	for (	in = dportals, out = loadmap.portals;
+		cnt > 0;
+		cnt--, in++, out++ )
 	{
-		out->edgeloop_start = GetInt (in + 0);
-		out->numedges = GetShort (in + 4);
+		out->edgeloop_start = GetInt (&in->edgeloop_start);
+		out->numedges = GetShort (&in->numedges);
 	}
 
 	free (dportals);
-
-	loadmap.allocsz += cnt * sizeof(*out);
 
 	return 1;
 }
@@ -289,47 +296,45 @@ LoadNodes (void)
 }
 
 
+struct dleaf_s
+{
+	int mins[3];
+	int maxs[3];
+	unsigned int firstsurface;
+	unsigned short numsurfaces;
+} __attribute__ ((packed));
+
 static int
 LoadLeafs (void)
 {
-	int sz, cnt, i, insz;
-	void *dleafs;
+	int sz, cnt;
+	struct dleaf_s *dleafs, *in;
 	struct mleaf_s *out;
-	char *in;
-
-	/* leaf on disk:
-	 * int mins[3]
-	 * int maxs[3]
-	 * unsigned int firstsurface
-	 * unsigned short numsurfaces
-	 */
-	insz = (6 * sizeof(int)) + sizeof(unsigned int) + sizeof(unsigned short);
 
 	if ((dleafs = Get("leafs", &sz)) == NULL)
 		return 0;
-	cnt = sz / insz;
+	cnt = sz / sizeof(*in);
 
 	loadmap.leafs = malloc(cnt * sizeof(*out));
+	loadmap.allocsz += cnt * sizeof(*out);
 	loadmap.num_leafs = cnt;
 
-	for (	i = 0, in = dleafs, out = loadmap.leafs;
-		i < cnt;
-		i++, in += insz, out++ )
+	for (	in = dleafs, out = loadmap.leafs;
+		cnt > 0;
+		cnt--, in++, out++ )
 	{
-		out->mins[0] = GetInt (in + 0);
-		out->mins[1] = GetInt (in + 4);
-		out->mins[2] = GetInt (in + 8);
-		out->maxs[0] = GetInt (in + 12);
-		out->maxs[1] = GetInt (in + 16);
-		out->maxs[2] = GetInt (in + 20);
+		out->mins[0] = GetInt (&in->mins[0]);
+		out->mins[1] = GetInt (&in->mins[1]);
+		out->mins[2] = GetInt (&in->mins[2]);
+		out->maxs[0] = GetInt (&in->maxs[0]);
+		out->maxs[1] = GetInt (&in->maxs[1]);
+		out->maxs[2] = GetInt (&in->maxs[2]);
 		out->flags = NODEFL_LEAF;
-		out->firstsurface = GetInt (in + 24);
-		out->numsurfaces = GetShort (in + 28);
+		out->firstsurface = GetInt (&in->firstsurface);
+		out->numsurfaces = GetShort (&in->numsurfaces);
 	}
 
 	free (dleafs);
-
-	loadmap.allocsz += cnt * sizeof(*out);
 
 	return 1;
 }

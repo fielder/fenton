@@ -154,8 +154,8 @@ R_Span_BeginFrame (void *buf, int buflen)
 {
 	uintptr_t start, end;
 
-	start = (uintptr_t)surfbuf;
-	end = start + surfbuflen;
+	start = (uintptr_t)buf;
+	end = start + buflen;
 //	start = (start + cachelinesize - 1) - ((start + cachelinesize - 1) % cachelinesize);
 //	end -= (end - start) % sizeof(struct drawsurf_s);
 //	surfs = (struct drawsurf_s *)start;

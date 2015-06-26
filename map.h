@@ -35,6 +35,7 @@ struct mvertex_s
 struct medge_s
 {
 	unsigned int v[2];
+	unsigned int cachenum;
 };
 
 struct msurface_s
