@@ -88,9 +88,12 @@ Pak_Open (const char *path)
 struct pak_s *
 Pak_Close (struct pak_s *pak)
 {
-	if (pak->fd != -1)
-		close (pak->fd);
-	free (pak);
+	if (pak != NULL)
+	{
+		if (pak->fd != -1)
+			close (pak->fd);
+		free (pak);
+	}
 	return NULL;
 }
 

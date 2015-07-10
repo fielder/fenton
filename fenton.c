@@ -104,7 +104,7 @@ F_LoadMap (const char *name)
 {
 	if (!Map_Load(name))
 	{
-		F_Log ("Failed loading \"%s\"\n", name);
+		F_Log ("Failed loading \"%s\": %s\n", name, map_error);
 	}
 	else
 	{
@@ -242,6 +242,12 @@ RunInput (void)
 
 	if (input.key.release['1'])
 		F_LoadMap ("TEST1");
+	if (input.key.release['2'])
+		F_LoadMap ("TEST2");
+	if (input.key.release['3'])
+		F_LoadMap ("TEST3");
+	if (input.key.release['4'])
+		F_LoadMap ("TEST4");
 
 	if (input.key.release['p'])
 	{

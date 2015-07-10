@@ -11,8 +11,8 @@
 struct datasource_s
 {
 	struct datasource_s *next;
-	char *path;
 	struct pak_s *pak;
+	char path[0];
 };
 
 
@@ -38,7 +38,6 @@ Data_AddPath (const char *path)
 	src = malloc(sizeof(*src) + strlen(path) + 1);
 	src->next = sources.next;
 	sources.next = src;
-	src->path = (char *)src + sizeof(*src);
 	strcpy (src->path, path);
 	src->pak = pak;
 

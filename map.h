@@ -1,6 +1,8 @@
 #ifndef __MAP_H__
 #define __MAP_H__
 
+// structs aligned to keep 8-byte doubles aligned
+
 enum
 {
 	NORMAL_X,	/*  1  0  0 */
@@ -54,13 +56,12 @@ struct msurface_s
 	//char align_padding[4]; /* to 48 bytes */
 };
 
-#if 0
 struct mtexvecs_s
 {
-	double texvec_s[3];
-	double texvec_t[3];
+	int blahblah;
+	//double texvec_s[3];
+	//double texvec_t[3];
 };
-#endif
 
 /* portals are always stored on the front of the node plane */
 struct mportal_s
@@ -101,7 +102,7 @@ struct mleaf_s
 
 struct map_s
 {
-	char *name;
+//	char *name;
 
 	int allocsz;
 
@@ -129,13 +130,15 @@ struct map_s
 	struct mleaf_s *leafs;
 	int num_leafs;
 
-//	struct mtexvecs_s *texvecs;
-//	int num_texvecs;
+	struct mtexvecs_s *texvecs;
+	int num_texvecs;
 
 	//TODO: textures
 };
 
 extern struct map_s map;
+
+extern const char *map_error;
 
 extern void
 Map_Unload (void);

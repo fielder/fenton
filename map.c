@@ -1,5 +1,7 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include <string.h>
 
 #include "bdat.h"
@@ -8,6 +10,24 @@
 #include "map.h"
 
 struct map_s map;
+
+const char *map_error;
+
+
+static int
+Error (const char *fmt, ...)
+{
+	static char errstr[256];
+	va_list args;
+
+	va_start (args, fmt);
+	vsnprintf (errstr, sizeof(errstr), fmt, args);
+	va_end (args);
+
+	map_error = errstr;
+
+	return 0;
+}
 
 
 static void
@@ -29,8 +49,11 @@ FreeMap (struct map_s *m)
 		free (m->nodes);
 	if (m->leafs != NULL)
 		free (m->leafs);
+	if (m->texvecs != NULL)
+		free (m->texvecs);
 
 	memset (m, 0, sizeof(*m));
+	map_error = NULL;
 }
 
 
@@ -42,32 +65,7 @@ Map_Unload (void)
 
 
 static struct map_s loadmap;
-static struct pak_s *loadpak;
-static char *mapdir;
-
-
-static void *
-Get (const char *name, int *size)
-{
-	void *ret;
-
-	if (loadpak != NULL)
-	{
-		ret = Pak_ReadEntry (loadpak, name, size);
-	}
-	else
-	{
-		/* make the filename: "MAPNAME/vertices" */
-		int i = strlen(mapdir);
-		mapdir[i] = '/';
-		strcpy (mapdir + i + 1, name);
-		ret = Data_ReadFile (mapdir, size);
-		/* undo filename modification */
-		mapdir[i] = '\0';
-	}
-
-	return ret;
-}
+static void *(*Get) (const char *name, int *size);
 
 
 static int
@@ -105,6 +103,7 @@ struct dplane_s
 static int
 LoadPlanes (void)
 {
+#if 0
 	int sz, cnt;
 	struct dplane_s *dplanes, *in;
 	struct mplane_s *out;
@@ -129,6 +128,7 @@ LoadPlanes (void)
 	}
 
 	free (dplanes);
+#endif
 
 	return 1;
 }
@@ -167,6 +167,7 @@ struct dedge_s
 static int
 LoadEdges (void)
 {
+#if 0
 	int sz, cnt;
 	struct dedge_s *dedges, *in;
 	struct medge_s *out;
@@ -189,6 +190,7 @@ LoadEdges (void)
 	}
 
 	free (dedges);
+#endif
 
 	return 1;
 }
@@ -197,6 +199,7 @@ LoadEdges (void)
 static int
 LoadEdgeLoops (void)
 {
+#if 0
 	int sz, i;
 
 	/* edgeloops on disk are just int's */
@@ -208,6 +211,7 @@ LoadEdgeLoops (void)
 
 	for (i = 0; i < loadmap.num_loopedges; i++)
 		loadmap.edgeloops[i] = GetInt (&loadmap.edgeloops[i]);
+#endif
 
 	return 1;
 }
@@ -224,6 +228,7 @@ struct dsurface_s
 static int
 LoadSurfaces (void)
 {
+#if 0
 	int sz, cnt;
 	struct dsurface_s *dsurfaces, *in;
 	struct msurface_s *out;
@@ -248,6 +253,7 @@ LoadSurfaces (void)
 	}
 
 	free (dsurfaces);
+#endif
 
 	return 1;
 }
@@ -262,6 +268,7 @@ struct dportal_s
 static int
 LoadPortals (void)
 {
+#if 0
 	int sz, cnt;
 	struct dportal_s *dportals, *in;
 	struct mportal_s *out;
@@ -283,6 +290,7 @@ LoadPortals (void)
 	}
 
 	free (dportals);
+#endif
 
 	return 1;
 }
@@ -307,6 +315,7 @@ struct dleaf_s
 static int
 LoadLeafs (void)
 {
+#if 0
 	int sz, cnt;
 	struct dleaf_s *dleafs, *in;
 	struct mleaf_s *out;
@@ -335,6 +344,7 @@ LoadLeafs (void)
 	}
 
 	free (dleafs);
+#endif
 
 	return 1;
 }
@@ -348,60 +358,84 @@ LoadTextures (void)
 }
 
 
+static struct pak_s *loadpak;
+static const char *loaddir;
+
+static void *
+GetFromPak (const char *name, int *size)
+{
+	void *ret = Pak_ReadEntry (loadpak, name, size);
+	if (ret == NULL)
+		Error("failed loading \"%s\"", name);
+	return ret;
+}
+
+
+static void *
+GetFromDir (const char *name, int *size)
+{
+	void *ret;
+	int sz;
+	char *fullpath;
+
+	sz = strlen(loaddir) + 1 + strlen(name) + 1 + 10/*slop*/;
+	fullpath = malloc(sz);
+	snprintf (fullpath, sz, "%s/%s", loaddir, name);
+	ret = Data_ReadFile (fullpath, size);
+	free (fullpath);
+
+	return ret;
+}
+
+
 int
 Map_Load (const char *name)
 {
 	int direxists;
-	char path[1024];
 
-	/* save room on end for filenames, "vertices", "nodes", etc */
-	if (strlen(name) > sizeof(path) - 100)
-		return 0;
+	map_error = NULL;
+	memset (&loadmap, 0, sizeof(loadmap));
 
 	if (Data_IsDir(name, &direxists) && direxists)
 	{
-		/* first, try a map in the filesystem */
-
-		strcpy (path, name);
-		mapdir = path;
-
-		loadpak = NULL;
+		loaddir = name;
+		Get = GetFromDir;
 	}
 	else
 	{
 		/* no directory with the map name; try a pak */
 
+		const char *ext = ".pak";
+		char path[2048];
+
+		if (strlen(name) > (sizeof(path) - strlen(ext) - 1))
+			return Error("map name too long");
 		strcpy (path, name);
-		strcpy (path + strlen(path), ".pak");
-
+		strcat (path, ext);
 		if ((loadpak = Pak_Open(path)) == NULL)
-			return 0;
+			return Error("unable to open \"%s\"", path);
 
-		mapdir = NULL;
+		Get = GetFromPak;
 	}
 
 	if (!LoadPlanes())
-		goto error;
+		goto failed;
 	if (!LoadVertices())
-		goto error;
+		goto failed;
 	if (!LoadEdges())
-		goto error;
+		goto failed;
 	if (!LoadEdgeLoops())
-		goto error;
+		goto failed;
 	if (!LoadSurfaces())
-		goto error;
+		goto failed;
 	if (!LoadPortals())
-		goto error;
+		goto failed;
 	if (!LoadNodes())
-		goto error;
+		goto failed;
 	if (!LoadLeafs())
-		goto error;
+		goto failed;
 	if (!LoadTextures())
-		goto error;
-
-	if (loadpak != NULL)
-		loadpak = Pak_Close (loadpak);
-	mapdir = NULL;
+		goto failed;
 
 	/* success; get rid of current map & switch over */
 
@@ -409,16 +443,20 @@ Map_Load (const char *name)
 	map = loadmap;
 	memset (&loadmap, 0, sizeof(loadmap));
 
+	Get = NULL;
+	loadpak = Pak_Close (loadpak);
+	loaddir = NULL;
+
 	return 1;
 
-error:
+failed:
 	/* failure; keep the currently-loaded map running */
 
-	if (loadpak != NULL)
-		loadpak = Pak_Close (loadpak);
-	mapdir = NULL;
-
 	FreeMap (&loadmap);
+
+	Get = NULL;
+	loadpak = Pak_Close (loadpak);
+	loaddir = NULL;
 
 	return 0;
 }

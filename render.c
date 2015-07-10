@@ -323,10 +323,10 @@ R_Refresh (void)
 	R_3DPoint(10,0,0);
 	R_3DPoint(0,10,0);
 	R_3DPoint(0,0,10);
-	R_DrawLine(50,22,277,189,0x00ffffff);
-	R_DrawLine(50,30,277,197,0x000000ff);
-	R_DrawLine(50,38,277,205,0x0000ff00);
-	R_DrawLine(50,46,277,213,0x00ff0000);
+	R_DrawLine(50,22,277,189,0x00ffffff); // white
+	R_DrawLine(50,30,277,197,0x000000ff); // B - bits 0-7
+	R_DrawLine(50,38,277,205,0x0000ff00); // G - bits 8-15
+	R_DrawLine(50,46,277,213,0x00ff0000); // R - bits 16-23
 	if (1)
 	{
 		int i;
