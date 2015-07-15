@@ -9,6 +9,8 @@
 
 /* green span */
 #define NULLGSPAN 0xffff
+#define PTR2IDX(PTR) ((int)((PTR) - r_gspans))
+#define IDX2PTR(IDX) (r_gspans + (IDX))
 struct gspan_s
 {
 	unsigned short previdx, nextidx;
@@ -86,6 +88,32 @@ PushSpan (short y, short x1, short x2)
 		r_spans->len = x2 - x1 + 1;
 		r_spans++;
 	}
+}
+
+
+static inline void
+UnlinkGSpan (struct gspan_s *gs)
+{
+	IDX2PTR(gs->previdx)->nextidx = gs->nextidx;
+	IDX2PTR(gs->nextidx)->previdx = gs->previdx;
+}
+
+
+static inline void
+FreeGSpan (struct gspan_s *gs)
+{
+	gs->nextidx = PTR2IDX(r_gspans_pool);
+	r_gspans_pool = gs;
+}
+
+
+//FIXME: need to map 0xffff to NULL...
+static inline struct gspan_s *
+AllocGSpan ()
+{
+	struct gspan_s *ret = r_gspans_pool;
+	r_gspans_pool = IDX2PTR(r_gspans_pool->nextidx);
+	return ret;
 }
 
 
@@ -168,31 +196,28 @@ R_Span_BeginFrame (void *buf, int buflen)
 	r_spans_end = r_spans + cnt;
 
 	/* now gspans */
-	struct gspan_s *gs, *head, *next;
+	struct gspan_s *head;
 	int i;
 
 	for (i = 0, head = r_gspans; i < display_h; i++, head++)
 	{
+		struct gspan_s *next;
+
 		/* take any gspan still remaining on the row and toss
 		 * back into the pool */
-#if 0
-		while ((next = head->next) != head)
+		while ((next = IDX2PTR(head->nextidx)) != head)
 		{
-			head->next = next->next;
-			next->next = r_gspans_pool;
-			r_gspans_pool = next;
+			UnlinkGSpan (next);
+			FreeGSpan (next);
 		}
 
-		/* reset the row with 1 fresh gspan */
+		/* reset the entire row with 1 fresh gspan */
 
-		gs = r_gspans_pool;
-		r_gspans_pool = gs->next;
-
+		struct gspan_s *gs = AllocGSpan ();
 		gs->left = 0;
 		gs->right = display_w - 1;
-		gs->prev = gs->next = head;
-		head->prev = head->next = gs;
-#endif
+		gs->previdx = gs->nextidx = PTR2IDX(head);
+		head->previdx = head->nextidx = PTR2IDX(gs);
 	}
 }
 
