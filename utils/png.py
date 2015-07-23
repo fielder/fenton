@@ -45,36 +45,14 @@ def _buildPalettized(pixels, width, height, paldict):
 def _sub(a, b):
     return (a - b) % 256
 
-def _up(pixels, width, bpp, i):
-    if i < width * bpp:
-        return 0
-    return pixels[i - width * bpp]
 
-def _left(pixels, bpp, i):
-    if i < bpp:
-        return 0
-    return pixels[i - bpp]
-
-def _filt0(pixels, width, bpp):
-    return pixels
-
-def _filt1(pixels, width, bpp):
-    return bytes((_sub(pixels[i], _left(pixels, bpp, i)) for i in range(len(pixels))))
-
-def _filt2(pixels, width, bpp): 
-    return bytes((_sub(pixels[i], _up(pixels, width, bpp, i)) for i in range(len(pixels))))
-
-#FIXME: :-(
-def _filt3(pixels, width, bpp):
-    return bytes((
-        _sub(   pixels[i],
-                int((_left(pixels, bpp, i) + _up(pixels, width, bpp, i)) / 2)
-            )
-        for i in range(len(pixels))))
-
-
-def _filterRow(pixels, bpp):
-    width = int(len(pixels) / bpp)
+def _filterRow(pixels, width, bpp, y):
+    row = pixels[y * width * bpp : (y + 1) * width * bpp]
+    left = (b"\x00" * bpp) + row[:-bpp]
+    if y == 0:
+        up = b"\x00" * (width * bpp)
+    else:
+        up = pixels[(y - 1) * width * bpp : y * width * bpp]
 
     # one entry per filter type; 5 total
     # keyed by the quality of that filter method; lower is better
@@ -82,22 +60,24 @@ def _filterRow(pixels, bpp):
     sums = collections.OrderedDict()
 
     # (type 0) unfiltered
-#   enc = _filt0(pixels, width, bpp)
-#   sums[sum(enc)] = (0, enc)
+    enc = row
+    sums[sum(enc)] = (0, enc)
 
-    # (type 1) pix[i] - pix[left]
-#   enc = _filt1(pixels, width, bpp)
-#   sums[sum(enc)] = (1, enc)
+    # (type 1) pix - left
+    enc = bytes((_sub(row[i], left[i]) for i in range(len(row))))
+    sums[sum(enc)] = (1, enc)
 
-    # (type 2) pix[i] - pix[up]
-#   enc = _filt2(pixels, width, bpp)
-#   sums[sum(enc)] = (2, enc)
+    # (type 2) pix - up
+    enc = bytes((_sub(row[i], up[i]) for i in range(len(row))))
+    sums[sum(enc)] = (2, enc)
 
-    # (type 3) pix[i] - floor((pix[left] + pix[up]) / 2)
-    enc = _filt3(pixels, width, bpp)
+    # (type 3) pix - floor((left + up) / 2)
+    enc = bytes((_sub(row[i], int((left[i] + up[i]) / 2)) for i in range(len(row))))
     sums[sum(enc)] = (3, enc)
 
-    #TODO: paeth
+    # (type 3) paeth
+#   enc = TODO
+#   sums[sum(enc)] = (3, enc)
 
     type_, enc = sums[min(sums.keys())]
     return bytes([type_]) + enc
@@ -107,7 +87,7 @@ def _buildTrueColor(pixels, width, height, is_rgba):
     bpp = { False: 3, True: 4 }[is_rgba]
     imgtyp = { False: 2, True: 6 }[is_rgba]
 
-    filtered = b"".join((_filterRow(r, bpp) for r in _iterChop(pixels, width * bpp)))
+    filtered = b"".join((_filterRow(pixels, width, bpp, y) for y in range(height)))
 
     ihdr_dat = struct.pack(">IIBBBBB", width, height, 8, imgtyp, 0, 0, 0)
     idat_dat = zlib.compress(filtered)
@@ -123,15 +103,15 @@ def buildPNG(pixels, width, height, is_rgba=False):
     """
     """
 
-    if True: # rgb debug
+    if not True: # rgb debug
         return _buildTrueColor(pixels, width, height, is_rgba)
 
     if not is_rgba:
+        # no alpha; check if it can be written out as a
+        # palettized image
+
         if (len(pixels) % 3) != 0:
             raise Exception("invalid pixels")
-
-        # check if it can be written out as a palettized
-        # image; but can't have alpha with palettized images
 
         # build up the palette; { rgb: index_in_palette, ... }
         pal = collections.OrderedDict()
