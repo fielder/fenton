@@ -11,7 +11,7 @@
 #define FLYSPEED 64.0
 #define LOADPAK NULL
 
-#if 1
+#if 0
 /* wasd-style on a kinesis advantage w/ dvorak */
 static const int bind_forward = '.';
 static const int bind_back = 'e';
@@ -19,10 +19,10 @@ static const int bind_left = 'o';
 static const int bind_right = 'u';
 #else
 /* qwerty-style using arrows */
-static const int bind_forward = FK_UP;
-static const int bind_back = FK_DOWN;
-static const int bind_left = FK_LEFT;
-static const int bind_right = FK_RIGHT;
+static const int bind_forward = 'w';//FK_UP;
+static const int bind_back = 's';//FK_DOWN;
+static const int bind_left = 'a';//FK_LEFT;
+static const int bind_right = 'd';//FK_RIGHT;
 #endif
 
 double frametime;
