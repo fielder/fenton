@@ -249,6 +249,10 @@ RunInput (void)
 	if (input.key.release['4'])
 		F_LoadMap ("TEST4");
 
+	if (input.key.release['d'])
+	{
+	}
+
 	if (input.key.release['p'])
 	{
 		if (input.key.state[FK_LSHIFT] || input.key.state[FK_RSHIFT])

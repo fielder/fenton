@@ -233,15 +233,15 @@ def binaryFromText(text):
     return b"".join(iterBinaryFromText(text))
 
 
-if False:
+if not False:
 
     if __name__ == "__main__":
         import sys
         import os
-        if len(argv) < 2:
-            print("usage: %s infile" % argv[0])
+        if len(sys.argv) < 2:
+            print("usage: %s infile" % sys.argv[0])
             sys.exit(0)
-        for path in argv[1:]:
+        for path in sys.argv[1:]:
             # blah.xyz -> blah.xyz.binary
             # But text files are a little special:
             #   blah.txt -> blah.binary

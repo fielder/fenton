@@ -71,14 +71,17 @@ struct mportal_s
 	char align_padding[2]; /* to 8 bytes */
 };
 
+#define NODEFL_OFFSET (&((struct mnode_s *)0)->flags)
 #define NODEFL_LEAF (1<<15)
 
 /* nodes are always stored on the front of the plane */
 struct mnode_s
 {
+	/* first section is common with both node and leaf */
 	int mins[3];
 	int maxs[3];
 	unsigned short flags;
+
 	short pad;
 	unsigned int plane;
 	void *children[2];
@@ -93,17 +96,17 @@ struct mnode_s
 
 struct mleaf_s
 {
+	/* first section is common with both node and leaf */
 	int mins[3];
 	int maxs[3];
 	unsigned short flags;
+
 	unsigned short numsurfaces;
 	unsigned int firstsurface;
 };
 
 struct map_s
 {
-//	char *name;
-
 	int allocsz;
 
 	struct mplane_s *planes;
@@ -137,7 +140,6 @@ struct map_s
 };
 
 extern struct map_s map;
-
 extern const char *map_error;
 
 extern void

@@ -103,7 +103,6 @@ struct dplane_s
 static int
 LoadPlanes (void)
 {
-#if 0
 	int sz, cnt;
 	struct dplane_s *dplanes, *in;
 	struct mplane_s *out;
@@ -128,7 +127,6 @@ LoadPlanes (void)
 	}
 
 	free (dplanes);
-#endif
 
 	return 1;
 }
@@ -167,7 +165,6 @@ struct dedge_s
 static int
 LoadEdges (void)
 {
-#if 0
 	int sz, cnt;
 	struct dedge_s *dedges, *in;
 	struct medge_s *out;
@@ -190,7 +187,6 @@ LoadEdges (void)
 	}
 
 	free (dedges);
-#endif
 
 	return 1;
 }

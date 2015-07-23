@@ -109,7 +109,7 @@ VisitNodeRecursive (void *visit, int cplanes[4], int numcplanes)
 {
 	int planes[4];
 	int planecnt = 0;
-	unsigned short flags = ((unsigned short *)visit)[12];
+	unsigned short flags = *(unsigned short *)((uintptr_t)visit + NODEFL_OFFSET);
 
 	if (numcplanes)
 	{
