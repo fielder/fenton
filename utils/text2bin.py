@@ -45,7 +45,6 @@ def _splitFormat(fmt):
             if idx == len(fmt):
                 raise ValueError("count with no format")
             if fmt[idx] not in "bBhHiIlLqQfds":
-                # integer, float, or string value
                 raise ValueError("invalid counted format \"{}\"".format(fmt[start:idx + 1]))
             item = fmt[idx]
             idx += 1
@@ -85,7 +84,8 @@ def _castItems(fmts, items):
 
     Note that the count given with strings is not a repeat. It tells the
     number of characters the string will be packed into. However, for
-    this method it's ignored.
+    this method it's ignored as ultimately struct.pack() will truncate
+    for us.
     Additionally, because strings are packed, we convert them to byte
     strings here.
     """
@@ -103,9 +103,7 @@ def _castItems(fmts, items):
                 raise ValueError("not enough items given")
             ret.append(items[item_idx].encode())
             item_idx += 1
-            continue
-
-        if fmt in "bBhHiIlLqQ":
+        elif fmt in "bBhHiIlLqQ":
             while cnt > 0:
                 if item_idx >= len(items):
                     raise ValueError("not enough integer items given")

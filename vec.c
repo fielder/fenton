@@ -2,7 +2,6 @@
  * Slow, crusty, archaic math "library"
  */
 
-#include <string.h>
 #include <math.h>
 
 #include "vec.h"
@@ -152,6 +151,13 @@ Vec_MultMatrix (double a[3][3], double b[3][3], double out[3][3])
 }
 
 
+static int
+CmpOrder (const char *a, const char *b)
+{
+	return a[0] == b[0] && a[1] == b[1] && a[2] == b[2];
+}
+
+
 void
 Vec_AnglesMatrix (const double angles[3], double out[3][3], const char *order)
 {
@@ -188,32 +194,32 @@ Vec_AnglesMatrix (const double angles[3], double out[3][3], const char *order)
 	z[1][0] = sz;
 	z[1][1] = cz;
 
-	if (!strcmp(order, "xyz"))
+	if (CmpOrder(order, "xyz"))
 	{
 		Vec_MultMatrix (x, y, temp);
 		Vec_MultMatrix (temp, z, out);
 	}
-	else if (!strcmp(order, "xzy"))
+	else if (CmpOrder(order, "xzy"))
 	{
 		Vec_MultMatrix (x, z, temp);
 		Vec_MultMatrix (temp, y, out);
 	}
-	else if (!strcmp(order, "yxz"))
+	else if (CmpOrder(order, "yxz"))
 	{
 		Vec_MultMatrix (y, x, temp);
 		Vec_MultMatrix (temp, z, out);
 	}
-	else if (!strcmp(order, "zxy"))
+	else if (CmpOrder(order, "zxy"))
 	{
 		Vec_MultMatrix (z, x, temp);
 		Vec_MultMatrix (temp, y, out);
 	}
-	else if (!strcmp(order, "yzx"))
+	else if (CmpOrder(order, "yzx"))
 	{
 		Vec_MultMatrix (y, z, temp);
 		Vec_MultMatrix (temp, x, out);
 	}
-	else if (!strcmp(order, "zyx"))
+	else if (CmpOrder(order, "zyx"))
 	{
 		Vec_MultMatrix (z, y, temp);
 		Vec_MultMatrix (temp, x, out);
