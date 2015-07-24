@@ -286,6 +286,29 @@ def getFlat(name):
     raise LookupError("failed finding flat \"{}\"".format(name))
 
 
+def textureToRGB(tex, palnum=0):
+    rows = []
+    maskrows = []
+    for y in range(tex.height):
+        rows.append( bytes(col[y] for col in tex.columns) )
+        maskrows.append( bytes(col[y] for col in tex.masks) )
+
+    allpixels = b"".join(rows)
+    allmask = b"".join(maskrows)
+
+    if b"\x00" not in allmask:
+        # all pixels opaque; no alpha
+        return (pixelsToRGB(allpixels, palnum=palnum), False)
+    else:
+        #TODO: ...
+        #TODO: ...
+        pass
+
+
+def pixelsToRGB(pixels, palnum=0):
+    return b"".join( (palettes[palnum][pix] for pix in pixels) )
+
+
 if __name__ == "__main__":
     import sys
     for path in sys.argv[1:]:
