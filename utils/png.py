@@ -101,6 +101,11 @@ def _buildTrueColor(pixels, width, height, is_rgba):
 
 def buildPNG(pixels, width, height, is_rgba=False):
     """
+    Build a fully constructed PNG image as a byte string that can be
+    written directly out to a file.
+
+    pixels should be a byte string of RGB or RGBA values, depending on
+    the is_rgba flag.
     """
 
     if not True: # rgb debug
@@ -111,7 +116,7 @@ def buildPNG(pixels, width, height, is_rgba=False):
         # palettized image
 
         if (len(pixels) % 3) != 0:
-            raise Exception("invalid pixels")
+            raise Exception("invalid RGB pixels")
 
         # build up the palette; { rgb: index_in_palette, ... }
         pal = collections.OrderedDict()
@@ -120,16 +125,22 @@ def buildPNG(pixels, width, height, is_rgba=False):
             pal.setdefault(p, len(pal))
             if len(pal) > 256:
                 # too many different colors for a palettized image
-                break
-        else:
-            # <= 256 colors
-            return _buildPalettized(pixels, width, height, pal)
+                return _buildTrueColor(pixels, width, height, False)
 
-    return _buildTrueColor(pixels, width, height, is_rgba)
+        # <= 256 colors
+        return _buildPalettized(pixels, width, height, pal)
+    else:
+        if (len(pixels) % 4) != 0:
+            raise Exception("invalid RGBA pixels")
+        return _buildTrueColor(pixels, width, height, True)
 
 
 def writePNG(path, pixels, width, height, is_rgba=False):
     """
+    Build a PNG image and write it out to a file.
+
+    pixels should be a byte string of RGB or RGBA values, depending on
+    the is_rgba flag.
     """
 
     with open(path, "wb") as fp:
@@ -137,54 +148,39 @@ def writePNG(path, pixels, width, height, is_rgba=False):
 
 
 if __name__ == "__main__":
-    #_test1sz = 2
-    _test1sz = 31
-    _test1 = ( \
-        (b"\xff\xff\xff" * _test1sz) + \
-        (b"\xff\x00\x00" * _test1sz) + \
-        (b"\x00\xff\x00" * _test1sz) + \
-        (b"\x00\x00\xff" * _test1sz) + \
-        (b"\x00\x00\x00" * _test1sz) \
-        ) * _test1sz
-    writePNG("test1.png",_test1,_test1sz*5,_test1sz)
+    if True:
+        #_test1sz = 2
+        _test1sz = 31
+        _test1 = ( \
+            (b"\xff\xff\xff" * _test1sz) + \
+            (b"\xff\x00\x00" * _test1sz) + \
+            (b"\x00\xff\x00" * _test1sz) + \
+            (b"\x00\x00\xff" * _test1sz) + \
+            (b"\x00\x00\x00" * _test1sz) \
+            ) * _test1sz
+        writePNG("test1.png",_test1,_test1sz*5,_test1sz)
 
-    _test2sz = 2
-    #_test2sz = 7
-    _test2 = ( \
-        (b"\xff\xff\xff\xff" * _test2sz) + \
-        (b"\xff\x00\x00\xff" * _test2sz) + \
-        (b"\x00\xff\x00\xff" * _test2sz) + \
-        (b"\x00\x00\xff\xff" * _test2sz) + \
-        (b"\x00\x00\x00\xff" * _test2sz) \
-        ) * _test2sz
-    writePNG("test2.png",_test2,_test2sz*5,_test2sz,True)
+        _test2sz = 2
+        #_test2sz = 7
+        _test2 = ( \
+            (b"\xff\xff\xff\xff" * _test2sz) + \
+            (b"\xff\x00\x00\xff" * _test2sz) + \
+            (b"\x00\xff\x00\xff" * _test2sz) + \
+            (b"\x00\x00\xff\xff" * _test2sz) + \
+            (b"\x00\x00\x00\xff" * _test2sz) \
+            ) * _test2sz
+        writePNG("test2.png",_test2,_test2sz*5,_test2sz,True)
 
+    else:
 
-# all values in network byte ordering
-# chunk:
-# - data len (uint)
-# - type (4 ascii bytes, A-Z or a-z, non-terminated)
-# - data bytes; can be 0
-# - crc of type & data fields
-
-# image types:
-# x 0 greyscale
-# - 2 truecolor
-# - 3 palettized
-# x 4 greyscale w/ alpha
-# - 6 truecolor w/ alpha
-
-# header chunk:
-# - uint width
-# - uint height
-# - uchar bits per sample; will use 8
-# - uchar color type; 2, 3, or 6
-# - uchar compression method, always 0
-# - uchar filter method, always 0
-# - uchar interlace method, use 0, no interlacing
-
-# palette chunk:
-# - simple RGB triplets
-
-# end chunk:
-# - no data
+        import os
+        import texutil
+        texutil.loadFromWad("doom1.wad")
+        tnames = list(texutil.texturelists["TEXTURE1"].keys())
+        for tn in tnames:
+            td = texutil.findTextureDef(tn)
+            t = texutil.getTexture(td)
+            pix, alpha = texutil.textureToRGB(t)
+            path = t.name + os.path.extsep + "png"
+            writePNG(path, pix, t.width, t.height, alpha)
+            print("wrote \"{}\"".format(path))

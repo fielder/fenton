@@ -286,12 +286,12 @@ def getFlat(name):
     raise LookupError("failed finding flat \"{}\"".format(name))
 
 
-def textureToRGB(texdef, palnum=0):
+def textureToRGB(tex, palnum=0):
     rows = []
     maskrows = []
-    for y in range(texdef.height):
-        rows.append( bytes(col[y] for col in texdef.columns) )
-        maskrows.append( bytes(col[y] for col in texdef.masks) )
+    for y in range(tex.height):
+        rows.append( bytes(col[y] for col in tex.columns) )
+        maskrows.append( bytes(col[y] for col in tex.masks) )
 
     allpixels = b"".join(rows)
     allmask = b"".join(maskrows)
