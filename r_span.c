@@ -3,21 +3,26 @@
 #include <stdlib.h>
 
 //#include "r_defs.h"
+#include "bdat.h"
 #include "appio.h"
 #include "render.h"
 
 /* green span */
+#define NULLGSPAN 0xffff
 struct gspan_s
 {
 	unsigned short previdx, nextidx;
 	short left, right;
 };
 
+/* globals, but point to a temp buffer on the stack during refresh */
 struct drawspan_s *r_spans = NULL;
 static struct drawspan_s *r_spans_end = NULL;
 
 static struct gspan_s *r_gspans = NULL;
 static struct gspan_s *r_gspans_pool = NULL;
+
+static int display_w, display_h;
 
 
 void
@@ -27,28 +32,33 @@ R_Span_Init (void)
 
 	R_Span_Cleanup ();
 
+	display_w = video.w;
+	display_h = video.h;
+
 	/* estimate a probable max number of spans per row */
 	//TODO: should be tested & tweaked
-	count = video.h * 24;
+	count = display_h * 24;
 
 	/* we're using integers rather than pointers, ensure our 'null'
-	 * isn't used (0xffff) */
-	if (count > 0xffff)
-		count = 0xffff;
+	 * isn't used */
+	if (count > NULLGSPAN)
+		count = NULLGSPAN;
 
 	r_gspans = malloc (count * sizeof(*r_gspans));
 
 	/* The first handful are reserved as each row's gspan
 	 * list head. ie: one element per screen row just for
 	 * linked-list management. */
-	for (i = 0; i < video.h; i++)
+	for (i = 0; i < display_h; i++)
 		r_gspans[i].previdx = r_gspans[i].nextidx = i;
 
-	/* set up the pool */
+	/* set up the pool; note that since this is the pool we don't
+	 * care about the prev link as it's not needed when popping or
+	 * pushing a gspan to the pool */
 	r_gspans_pool = r_gspans + i;
 	while (i < count)
 	{
-		r_gspans[i].nextidx = (i == count - 1) ? 0xffff : i + 1;
+		r_gspans[i].nextidx = (i == count - 1) ? NULLGSPAN : i + 1;
 		i++;
 	}
 }
@@ -58,11 +68,11 @@ void
 R_Span_Cleanup (void)
 {
 	if (r_gspans != NULL)
-	{
 		free (r_gspans);
-		r_gspans = NULL;
-		r_gspans_pool = NULL;
-	}
+	r_gspans = NULL;
+	r_gspans_pool = NULL;
+	r_spans = NULL;
+	r_spans_end = NULL;
 }
 
 
@@ -152,33 +162,16 @@ R_Span_ClipAndEmit (int y, int x1, int x2)
 void
 R_Span_BeginFrame (void *buf, int buflen)
 {
-	uintptr_t start, end;
+	unsigned int cnt;
 
-	start = (uintptr_t)buf;
-	end = start + buflen;
-//	start = (start + cachelinesize - 1) - ((start + cachelinesize - 1) % cachelinesize);
-//	end -= (end - start) % sizeof(struct drawsurf_s);
-//	surfs = (struct drawsurf_s *)start;
-//	surfs_end = (struct drawsurf_s *)end;
-#if 0
-	/* prepare the given span buffer */
-	uintptr_t p = (uintptr_t)buf;
-
-	while ((p % sizeof(struct drawspan_s)) != 0)
-	{
-		p++;
-		buflen--;
-	}
-
-	r_spans = (struct drawspan_s *)p;
-	r_spans_end = r_spans + (buflen / sizeof(struct drawspan_s));
-#endif
+	r_spans = AlignAllocation (buf, buflen, sizeof(*r_spans), &cnt);
+	r_spans_end = r_spans + cnt;
 
 	/* now gspans */
 	struct gspan_s *gs, *head, *next;
 	int i;
 
-	for (i = 0, head = r_gspans; i < video.h; i++, head++)
+	for (i = 0, head = r_gspans; i < display_h; i++, head++)
 	{
 		/* take any gspan still remaining on the row and toss
 		 * back into the pool */
@@ -196,7 +189,7 @@ R_Span_BeginFrame (void *buf, int buflen)
 		r_gspans_pool = gs->next;
 
 		gs->left = 0;
-		gs->right = video.w - 1;
+		gs->right = display_w - 1;
 		gs->prev = gs->next = head;
 		head->prev = head->next = gs;
 #endif

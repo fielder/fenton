@@ -157,14 +157,14 @@ VisitNodeRecursive (void *visit, int cplanes[4], int numcplanes)
 void
 R_DrawWorld (void)
 {
-	//char spanbuf[32 * 1024];
+	char spanbuf[32 * 1024];
 	char surfacebuf[32 * 1024];
 	char edgebuf[32 * 1024];
 
 	int planes[4] = { 0, 1, 2, 3 };
 
 	R_Surf_BeginFrame (surfacebuf, sizeof(surfacebuf), edgebuf, sizeof(edgebuf));
-	//R_Span_BeginFrame (spanbuf, sizeof(spanbuf));
+	R_Span_BeginFrame (spanbuf, sizeof(spanbuf));
 
 	if (map.num_nodes > 0)
 		VisitNodeRecursive (map.nodes, planes, 4);
