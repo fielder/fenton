@@ -1,4 +1,33 @@
+#include <stdint.h>
+
 #include "bdat.h"
+
+
+void *
+AlignAllocation (void *buf, unsigned int bufsz, int align, unsigned int *count)
+{
+	if (align < 8)
+		align = 8;
+
+	uintptr_t p = (uintptr_t)buf;
+	uintptr_t e = p + bufsz;
+
+	p += align - 1;
+	p -= p % align;
+
+	e -= e % align;
+
+	if (e <= p)
+	{
+		/* buffer is too small */
+		return (void *)0;
+	}
+
+	if (count)
+		*count = (e - p) / align;
+
+	return (void *)p;
+}
 
 
 int

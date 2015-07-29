@@ -1,6 +1,9 @@
 #ifndef __BDAT_H__
 #define __BDAT_H__
 
+extern void *
+AlignAllocation (void *buf, unsigned int bufsz, int align, unsigned int *count);
+
 extern int
 GetByte (const void *bytes);
 

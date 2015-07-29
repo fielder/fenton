@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#include "bdat.h"
 #include "map.h"
 #include "render.h"
 
@@ -63,24 +64,14 @@ R_CheckPortalVisibility (struct mportal_s *portal, int reversewinding)
 void
 R_Surf_BeginFrame (void *surfbuf, int surfbufsize, void *edgebuf, int edgebufsize)
 {
-	const int cachelinesize = 32;
-	uintptr_t start, end;
+	unsigned int cnt;
 
-	/* tweak the buffers to align on cacheline boundaries */
+	surfs = AlignAllocation (surfbuf, surfbufsize, sizeof(*surfs), &cnt);
+	surfs_end = surfs + cnt;
 
-	/* surfaces */
-	start = (uintptr_t)surfbuf;
-	end = start + surfbufsize;
-	start = (start + cachelinesize - 1) - ((start + cachelinesize - 1) % cachelinesize);
-	end -= (end - start) % sizeof(struct drawsurf_s);
-	surfs = (struct drawsurf_s *)start;
-	surfs_end = (struct drawsurf_s *)end;
+	edges = AlignAllocation (edgebuf, edgebufsize, sizeof(*edges), &cnt);
+	edges_end = edges + cnt;
 
-	/* edges */
-	start = (uintptr_t)edgebuf;
-	end = start + edgebufsize;
-	start = (start + cachelinesize - 1) - ((start + cachelinesize - 1) % cachelinesize);
-	end -= (end - start) % sizeof(struct drawedge_s);
-	edges = (struct drawedge_s *)start;
-	edges_end = (struct drawedge_s *)end;
+	//...
+	//...
 }

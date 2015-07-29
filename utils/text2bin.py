@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """
 Convert text values to a binary encoding using struct.pack() formatting.
 
