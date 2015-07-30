@@ -86,6 +86,10 @@ R_Span_Init (void);
 extern void
 R_Span_Cleanup (void);
 
+// for portal visibility checking
+extern int
+R_Span_CheckVisible (int y, int x1, int x2);
+
 extern void
 R_Span_ClipAndEmit (int y, int x1, int x2);
 
