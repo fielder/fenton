@@ -11,7 +11,7 @@
 #define FLYSPEED 64.0
 #define LOADPAK NULL
 
-#if 0
+#if 1
 /* wasd-style on a kinesis advantage w/ dvorak */
 static const int bind_forward = '.';
 static const int bind_back = 'e';

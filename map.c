@@ -53,7 +53,6 @@ FreeMap (struct map_s *m)
 		free (m->texvecs);
 
 	memset (m, 0, sizeof(*m));
-	map_error = NULL;
 }
 
 
@@ -103,7 +102,6 @@ struct dplane_s
 static int
 LoadPlanes (void)
 {
-	/*
 	int sz, cnt;
 	struct dplane_s *dplanes, *in;
 	struct mplane_s *out;
@@ -128,7 +126,6 @@ LoadPlanes (void)
 	}
 
 	free (dplanes);
-	*/
 
 	return 1;
 }
@@ -315,7 +312,6 @@ struct dleaf_s
 static int
 LoadLeafs (void)
 {
-#if 0
 	int sz, cnt;
 	struct dleaf_s *dleafs, *in;
 	struct mleaf_s *out;
@@ -344,7 +340,6 @@ LoadLeafs (void)
 	}
 
 	free (dleafs);
-#endif
 
 	return 1;
 }
@@ -366,7 +361,7 @@ GetFromPak (const char *name, int *size)
 {
 	void *ret = Pak_ReadEntry (loadpak, name, size);
 	if (ret == NULL)
-		Error("failed loading \"%s\"", name);
+		Error("failed loading pak entry \"%s\"", name);
 	return ret;
 }
 
@@ -382,6 +377,8 @@ GetFromDir (const char *name, int *size)
 	fullpath = malloc(sz);
 	snprintf (fullpath, sz, "%s/%s", loaddir, name);
 	ret = Data_ReadFile (fullpath, size);
+	if (ret == NULL)
+		Error("unable to find \"%s\"", fullpath);
 	free (fullpath);
 
 	return ret;

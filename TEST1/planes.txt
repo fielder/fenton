@@ -1,0 +1,6 @@
+format <4d
+
+0 1 0 16 # floor
+0 -1 0 -144 # ceiling
+-1 0 0 -96 # east wall
+0 0 -1 -192 # south wall

@@ -1,4 +1,4 @@
-format <ddd
+format <3d
 
 # dims, XxYxZ - 64x128x64
 

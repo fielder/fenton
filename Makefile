@@ -3,6 +3,7 @@ SDLLDFLAGS = -L/usr/lib/x86_64-linux-gnu -lSDL2
 
 CC = gcc
 CFLAGS = -Wall -O2 $(SDLCFLAGS)
+#CFLAGS = -g -Wall -O2 $(SDLCFLAGS)
 LDFLAGS = -lm $(SDLLDFLAGS)
 OBJDIR = obj
 TARGET = $(OBJDIR)/fenton

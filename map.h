@@ -71,7 +71,7 @@ struct mportal_s
 	char align_padding[2]; /* to 8 bytes */
 };
 
-#define NODEFL_OFFSET (&((struct mnode_s *)0)->flags)
+#define NODEFL_FLAGS(PTR) *(unsigned short *)((char *)(PTR) + (sizeof(int) * 6))
 #define NODEFL_LEAF (1<<15)
 
 /* nodes are always stored on the front of the plane */
