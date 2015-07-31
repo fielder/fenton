@@ -1,0 +1,14 @@
+# plane, is backside, edgeloop start, num edges
+format <IHIH
+
+# floor
+0 0 0 4
+
+# ceiling
+1 0 4 4
+
+# east wall
+2 0 8 4
+
+# south wall
+3 0 12 4

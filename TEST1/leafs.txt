@@ -1,2 +1,3 @@
+# mins, maxs, first surf, num surfs
 format <3i3iIH
 32 16 128 96 144 192 0 4

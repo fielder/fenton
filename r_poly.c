@@ -48,6 +48,7 @@ R_GenSpansForSurfaces (unsigned int first, int count, int cplanes[4], int numcpl
 {
 	// stage 1: emit drawpolys and drawedges for those drawpolys
 	// stage 2: scan over the emitted drawpolys, emitting spans
+	// skip backfacing surfaces
 }
 
 

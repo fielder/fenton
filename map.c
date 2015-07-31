@@ -164,7 +164,6 @@ struct dedge_s
 static int
 LoadEdges (void)
 {
-	/*
 	int sz, cnt;
 	struct dedge_s *dedges, *in;
 	struct medge_s *out;
@@ -187,7 +186,6 @@ LoadEdges (void)
 	}
 
 	free (dedges);
-	*/
 
 	return 1;
 }
@@ -196,7 +194,6 @@ LoadEdges (void)
 static int
 LoadEdgeLoops (void)
 {
-#if 0
 	int sz, i;
 
 	/* edgeloops on disk are just int's */
@@ -208,7 +205,6 @@ LoadEdgeLoops (void)
 
 	for (i = 0; i < loadmap.num_loopedges; i++)
 		loadmap.edgeloops[i] = GetInt (&loadmap.edgeloops[i]);
-#endif
 
 	return 1;
 }
@@ -225,7 +221,6 @@ struct dsurface_s
 static int
 LoadSurfaces (void)
 {
-#if 0
 	int sz, cnt;
 	struct dsurface_s *dsurfaces, *in;
 	struct msurface_s *out;
@@ -250,7 +245,6 @@ LoadSurfaces (void)
 	}
 
 	free (dsurfaces);
-#endif
 
 	return 1;
 }
