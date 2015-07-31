@@ -333,4 +333,5 @@ R_Refresh (void)
 		for (i = 0; i < map.num_vertices; i++)
 			R_3DPoint(map.vertices[i].xyz[0],map.vertices[i].xyz[1],map.vertices[i].xyz[2]);
 	}
+	R_Span_DrawGSpans ();
 }

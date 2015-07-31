@@ -258,21 +258,32 @@ R_Span_BeginFrame (void *buf, int buflen)
  * screen should be filled by the rendered world so there should never
  * be any gspans visible.
  */
+#if 1
 void
 R_Span_DrawGSpans (void)
 {
-#if 0
-	const struct gspan_s *gs;
-	int i;
-
-	for (i = 0; i < r_vars.h; i++)
+}
+#else
+#include "appio.h"
+void
+R_Span_DrawGSpans (void)
+{
+	struct gspan_s *head;
+	struct gspan_s *next;
+	int i, x;
+	for (i = 0; i < display_h; i++)
 	{
-		for (gs = r_gspans[i].next; gs != &r_gspans[i]; gs = gs->next)
+		head = IDX2PTR(1 + i);
+		for (next = IDX2PTR(head->nextidx); next != head; next = IDX2PTR(next->nextidx))
 		{
-			memset (r_vars.screen + i * r_vars.pitch + gs->left,
-				251,
-				gs->right - gs->left + 1);
+			for (x = next->left; x <= next->right; x++)
+			{
+				if (video.bpp == 16)
+					((unsigned short *)video.rows[i])[x] = 0x7e0;
+				else
+					((unsigned int *)video.rows[i])[x] = 0xff00;
+			}
 		}
 	}
-#endif
 }
+#endif
