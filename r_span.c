@@ -120,7 +120,7 @@ AllocGSpan ()
 }
 
 
-static void
+static inline void
 LinkAfter (struct gspan_s *prev, struct gspan_s *linkin)
 {
 	linkin->previdx = PTR2IDX(prev);
@@ -222,33 +222,33 @@ R_Span_ClipAndEmit (int y, int x1, int x2)
 void
 R_Span_BeginFrame (void *buf, int buflen)
 {
-	/* set up draw spans */
 	unsigned int cnt;
+	int i;
+
+	/* set up draw spans */
 	r_spans = AlignAllocation (buf, buflen, sizeof(*r_spans), &cnt);
 	r_spans_end = r_spans + cnt;
 
-	/* now gspans */
-	int i;
+	/* take any gspan still remaining on each row and toss back into
+	 * the pool */
 	for (i = 0; i < display_h; i++)
 	{
 		struct gspan_s *head = IDX2PTR(1 + i);
 		struct gspan_s *next;
-
-		/* take any gspan still remaining on the row and toss
-		 * back into the pool */
 		while ((next = IDX2PTR(head->nextidx)) != head)
 		{
 			UnlinkGSpan (next);
 			FreeGSpan (next);
 		}
+	}
 
-		/* reset the entire row with 1 fresh gspan */
-
+	/* reset all rows with a gspan covering the entire row */
+	for (i = 0; i < display_h; i++)
+	{
 		struct gspan_s *gs = AllocGSpan ();
 		gs->left = 0;
 		gs->right = display_w - 1;
-		gs->previdx = gs->nextidx = PTR2IDX(head);
-		head->previdx = head->nextidx = PTR2IDX(gs);
+		LinkAfter (IDX2PTR(1 + i), gs);
 	}
 }
 
