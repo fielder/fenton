@@ -14,6 +14,7 @@ OBJS =	$(OBJDIR)/bdat.o \
 	$(OBJDIR)/appio.o \
 	$(OBJDIR)/fdata.o \
 	$(OBJDIR)/render.o \
+	$(OBJDIR)/r_misc.o \
 	$(OBJDIR)/fenton.o \
 	$(OBJDIR)/r_span.o \
 	$(OBJDIR)/r_bsp.o \
@@ -42,6 +43,8 @@ $(OBJDIR)/appio.o: appio.c
 $(OBJDIR)/fdata.o: fdata.c
 	$(CC) -c $(CFLAGS) $? -o $@
 $(OBJDIR)/render.o: render.c
+	$(CC) -c $(CFLAGS) $? -o $@
+$(OBJDIR)/r_misc.o: r_misc.c
 	$(CC) -c $(CFLAGS) $? -o $@
 $(OBJDIR)/fenton.o: fenton.c
 	$(CC) -c $(CFLAGS) $? -o $@

@@ -23,6 +23,7 @@ VisitNodeRecursive (void *visit, int cplanes[4], int numcplanes);
 static void
 VisitLeaf (struct mleaf_s *leaf, int cplanes[4], int numcplanes)
 {
+	//R_DrawLine (0,0,50,50,0xffffffff);
 	R_GenSpansForSurfaces (leaf->firstsurface, leaf->numsurfaces, cplanes, numcplanes);
 }
 
@@ -64,7 +65,7 @@ VisitNode (struct mnode_s *node, int cplanes[4], int numcplanes)
 			struct mportal_s *portal;
 			int i;
 
-			//TODO: reuse the side,dist
+			//TODO: reuse the side,dist... actually... even useful?
 			R_GenSpansForSurfaces (	node->front_firstsurface,
 						node->front_numsurfs,
 						cplanes,

@@ -60,15 +60,6 @@ extern void
 R_CalcViewXForm (void);
 
 extern void
-R_Clear (void);
-
-extern void
-R_3DPoint (double x, double y, double z);
-
-extern void
-R_DrawLine (int x1, int y1, int x2, int y2, int c);
-
-extern void
 R_Refresh (void);
 
 /* span stuff */
@@ -103,5 +94,22 @@ R_Span_DrawGSpans (void);
 
 extern void
 R_DrawWorld (void);
+
+/* misc */
+
+extern void
+R_Clear (void);
+
+extern void
+R_3DLine (const double v1[3], const double v2[3], int c);
+
+extern void
+R_3DLine2 (double x1, double y1, double z1, double x2, double y2, double z2, int c);
+
+extern void
+R_3DPoint (double x, double y, double z);
+
+extern void
+R_DrawLine (int x1, int y1, int x2, int y2, int c);
 
 #endif /* __RENDER_H__ */
