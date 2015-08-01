@@ -64,6 +64,7 @@ VisitNode (struct mnode_s *node, int cplanes[4], int numcplanes)
 			struct mportal_s *portal;
 			int i;
 
+			//TODO: reuse the side,dist
 			R_GenSpansForSurfaces (	node->front_firstsurface,
 						node->front_numsurfs,
 						cplanes,
