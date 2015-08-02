@@ -170,7 +170,11 @@ def _dumpFlats(destdir, sectors_raw):
             # with.
             pixels = b"\xfb" * (64 * 64)
         else:
-            pixels = texutil.getFlat(name)
+            try:
+                pixels = texutil.getFlat(name)
+            except LookupError as e:
+                print("Warning: failed fetching a flat ({})".format(e))
+                continue
 
         rgbs = b"".join( (texutil.palettes[PALNUM][pix] for pix in pixels) )
 
