@@ -107,10 +107,10 @@ extern void
 R_3DLine2 (double x1, double y1, double z1, double x2, double y2, double z2, int c);
 
 extern void
-R_3DPoint (const double v[3]);
+R_3DPoint (const double v[3], int c);
 
 extern void
-R_3DPoint2 (double x, double y, double z);
+R_3DPoint2 (double x, double y, double z, int c);
 
 extern void
 R_DrawLine (int x1, int y1, int x2, int y2, int c);

@@ -301,6 +301,8 @@ struct video_s
 	int bytes_pp;
 	void *buf;
 	void **rows;
+
+	int red, green, blue;
 };
 
 extern struct video_s video;

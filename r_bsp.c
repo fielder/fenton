@@ -8,7 +8,7 @@
 
 
 extern void
-R_GenSpansForSurfaces (unsigned int first, int count, int cplanes[4], int numcplanes);
+R_GenSpansForSurfaces (unsigned int first, int count, int cplanes[4], int numcplanes, int backface_check);
 
 extern int
 R_CheckPortalVisibility (struct mportal_s *portal, int reversewinding);
@@ -23,8 +23,7 @@ VisitNodeRecursive (void *visit, int cplanes[4], int numcplanes);
 static void
 VisitLeaf (struct mleaf_s *leaf, int cplanes[4], int numcplanes)
 {
-	//R_DrawLine (0,0,50,50,0xffffffff);
-	R_GenSpansForSurfaces (leaf->firstsurface, leaf->numsurfaces, cplanes, numcplanes);
+	R_GenSpansForSurfaces (leaf->firstsurface, leaf->numsurfaces, cplanes, numcplanes, 1);
 }
 
 
@@ -69,7 +68,8 @@ VisitNode (struct mnode_s *node, int cplanes[4], int numcplanes)
 			R_GenSpansForSurfaces (	node->front_firstsurface,
 						node->front_numsurfs,
 						cplanes,
-						numcplanes );
+						numcplanes,
+						0 );
 
 			for (	i = 0, portal = map.portals + node->firstportal;
 				i < node->numportals;

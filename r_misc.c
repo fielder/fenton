@@ -4,8 +4,6 @@
 #include "vec.h"
 #include "render.h"
 
-//#define CLIP_EPSILON (1.0 / 16.0)
-
 
 void
 R_Clear (void)
@@ -26,7 +24,7 @@ R_3DLine (const double v1[3], const double v2[3], int c)
 	Vec_Subtract (a, b, m);
 	if (Vec_Length(m) <= 0.05)
 	{
-		R_3DPoint (a);
+		R_3DPoint (a, c);
 		return;
 	}
 
@@ -69,6 +67,7 @@ R_3DLine (const double v1[3], const double v2[3], int c)
 	if (sx1 >= video.w) sx1 = video.w - 1;
 	if (sy1 < 0) sy1 = 0;
 	if (sy1 >= video.h) sy1 = video.h - 1;
+
 	Vec_Subtract (b, camera.pos, local);
 	Vec_Transform (camera.xform, local, b);
 	if (b[2] < 0.01) b[2] = 0.01;
@@ -78,6 +77,7 @@ R_3DLine (const double v1[3], const double v2[3], int c)
 	if (sx2 >= video.w) sx2 = video.w - 1;
 	if (sy2 < 0) sy2 = 0;
 	if (sy2 >= video.h) sy2 = video.h - 1;
+
 	R_DrawLine (sx1, sy1, sx2, sy2, c);
 }
 
@@ -95,7 +95,7 @@ R_3DLine2 (double x1, double y1, double z1, double x2, double y2, double z2, int
 
 
 void
-R_3DPoint (const double v[3])
+R_3DPoint (const double v[3], int c)
 {
 	double local[3], out[3];
 
@@ -108,22 +108,22 @@ R_3DPoint (const double v[3])
 		if (sx >= 0 && sx < video.w && sy >= 0 && sy < video.h)
 		{
 			if (video.bpp == 16)
-				((unsigned short *)video.rows[sy])[sx] = 0xffff;
+				((unsigned short *)video.rows[sy])[sx] = c;
 			else
-				((unsigned int *)video.rows[sy])[sx] = 0x00ffffff;
+				((unsigned int *)video.rows[sy])[sx] = c;
 		}
 	}
 }
 
 
 void
-R_3DPoint2 (double x, double y, double z)
+R_3DPoint2 (double x, double y, double z, int c)
 {
 	double v[3];
 
 	v[0] = x; v[1] = y; v[2] = z;
 
-	R_3DPoint (v);
+	R_3DPoint (v, c);
 }
 
 

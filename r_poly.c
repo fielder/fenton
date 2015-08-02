@@ -44,7 +44,7 @@ static struct drawedge_s *edges_end = NULL;
 
 
 void
-R_GenSpansForSurfaces (unsigned int first, int count, int cplanes[4], int numcplanes)
+R_GenSpansForSurfaces (unsigned int first, int count, int cplanes[4], int numcplanes, int backface_check)
 {
 	// stage 1: emit drawpolys and drawedges for those drawpolys
 	// stage 2: scan over the emitted drawpolys, emitting spans

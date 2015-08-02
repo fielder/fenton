@@ -78,6 +78,7 @@ IO_SetMode (int w, int h, int bpp, int scale, int fullscreen)
 {
 	int realw, realh;
 	int bytes_pp = 0;
+	int red = 0, green = 0, blue = 0;
 	Uint32 flags;
 	Uint32 format = 0;
 
@@ -106,11 +107,17 @@ IO_SetMode (int w, int h, int bpp, int scale, int fullscreen)
 	{
 		format = SDL_PIXELFORMAT_RGB565;
 		bytes_pp = 2;
+		red = 0xf800;
+		green = 0x7e0;
+		blue = 0x1f;
 	}
 	else if (bpp == 24)
 	{
 		format = SDL_PIXELFORMAT_RGB888;
 		bytes_pp = 4;
+		red = 0xff0000;
+		green = 0xff00;
+		blue = 0xff;
 	}
 	else
 	{
@@ -131,6 +138,9 @@ IO_SetMode (int w, int h, int bpp, int scale, int fullscreen)
 	video.h = h;
 	video.bpp = bpp;
 	video.bytes_pp = bytes_pp;
+	video.red = red;
+	video.green = green;
+	video.blue = blue;
 
 	/* set up row pointers */
 	{

@@ -178,19 +178,27 @@ R_Refresh (void)
 
 	R_DrawWorld ();
 
-	R_3DPoint2(0,0,0);
-	R_3DPoint2(10,0,0);
-	R_3DPoint2(0,10,0);
-	R_3DPoint2(0,0,10);
+	if (1)
+	{
+		int i;
+		for (i = 0; i < 100; i++)
+		{
+			R_3DPoint2(i*0.1,0,0,video.red);
+			R_3DPoint2(0,i*0.1,0,video.green);
+			R_3DPoint2(0,0,i*0.1,video.blue);
+		}
+	}
+
 //	R_DrawLine(50,22,277,189,0x00ffffff); // white
 //	R_DrawLine(50,30,277,197,0x000000ff); // B - bits 0-7
 //	R_DrawLine(50,38,277,205,0x0000ff00); // G - bits 8-15
 //	R_DrawLine(50,46,277,213,0x00ff0000); // R - bits 16-23
+//
 	if (1)
 	{
 		int i;
-		for (i = 0; i < map.num_vertices; i++)
-			R_3DPoint(map.vertices[i].xyz);
+		//for (i = 0; i < map.num_vertices; i++)
+		//	R_3DPoint(map.vertices[i].xyz);
 		for (i = 0; i < map.num_edges; i++)
 			R_3DLine (map.vertices[map.edges[i].v[0]].xyz, map.vertices[map.edges[i].v[1]].xyz, 0xffffffff);
 	}
