@@ -178,10 +178,10 @@ R_Refresh (void)
 
 	R_DrawWorld ();
 
-	R_3DPoint(0,0,0);
-	R_3DPoint(10,0,0);
-	R_3DPoint(0,10,0);
-	R_3DPoint(0,0,10);
+	R_3DPoint2(0,0,0);
+	R_3DPoint2(10,0,0);
+	R_3DPoint2(0,10,0);
+	R_3DPoint2(0,0,10);
 //	R_DrawLine(50,22,277,189,0x00ffffff); // white
 //	R_DrawLine(50,30,277,197,0x000000ff); // B - bits 0-7
 //	R_DrawLine(50,38,277,205,0x0000ff00); // G - bits 8-15
@@ -190,7 +190,9 @@ R_Refresh (void)
 	{
 		int i;
 		for (i = 0; i < map.num_vertices; i++)
-			R_3DPoint(map.vertices[i].xyz[0],map.vertices[i].xyz[1],map.vertices[i].xyz[2]);
+			R_3DPoint(map.vertices[i].xyz);
+		for (i = 0; i < map.num_edges; i++)
+			R_3DLine (map.vertices[map.edges[i].v[0]].xyz, map.vertices[map.edges[i].v[1]].xyz, 0xffffffff);
 	}
 	R_Span_DrawGSpans ();
 }
