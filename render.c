@@ -11,6 +11,8 @@ static const double fov_x = 90.0;
 
 struct camera_s camera;
 
+unsigned int r_framenum;
+
 
 void
 R_Init (void)
@@ -21,6 +23,8 @@ R_Init (void)
 	Vec_Clear (camera.angles);
 
 	R_CalcViewXForm ();
+
+	r_framenum = 0;
 }
 
 
@@ -203,4 +207,6 @@ R_Refresh (void)
 			R_3DLine (map.vertices[map.edges[i].v[0]].xyz, map.vertices[map.edges[i].v[1]].xyz, 0xffffffff);
 	}
 	R_Span_DrawGSpans ();
+
+	r_framenum++;
 }

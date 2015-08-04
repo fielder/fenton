@@ -1,63 +1,137 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#include "vec.h"
+#include "fenton.h"
 #include "bdat.h"
 #include "map.h"
 #include "render.h"
+
+struct cplane_s
+{
+	double normal[3];
+	double dist;
+	struct cplane_s *next;
+	int planeid;
+};
 
 struct drawsurf_s
 {
 	unsigned int surfnum;
 	char blah[28];
-#if 0
+
 	struct drawedge_s *edges[2]; /* left/right on the screen */
 
 	struct drawspan_s *spans;
-	int num_spans;
+	int numspans;
 
 	struct mpoly_s *mpoly;
 
+#if 0
 	//TODO: texture mapping stuff
 #endif
 };
 
 struct drawedge_s
 {
-#if 0
-	struct medge_s *owner;
-	struct drawedge_s *next; /* in v-sorted list of edges for the poly */
-#endif
+	unsigned int owner; /* medge this drawedge came from */
 
-	int top, bottom;
 	int u, du; /* 12.20 fixed-point format */
 
-#if 0
-	int is_right;
-#endif
+	unsigned short next; /* in v-sorted list of drawedges for the poly */
+
+	short top, bottom;
+
+	char pad[2]; /* align to 20 bytes */
 };
 
 static struct drawsurf_s *surfs = NULL;
+static struct drawsurf_s *surfs_p = NULL;
 static struct drawsurf_s *surfs_end = NULL;
 
 static struct drawedge_s *edges = NULL;
+static struct drawedge_s *edges_p = NULL;
 static struct drawedge_s *edges_end = NULL;
+
+
+static struct cplane_s *
+GetCPlanes (int cplanes[4], int numcplanes)
+{
+	static struct cplane_s pl[4];
+	struct cplane_s *ret = NULL;
+	int i;
+
+	for (i = 0; i < numcplanes; i++)
+	{
+		Vec_Copy (camera.vplanes[cplanes[i]].normal, pl[i].normal);
+		pl[i].dist = camera.vplanes[cplanes[i]].dist;
+		pl[i].next = ret;
+		pl[i].planeid = cplanes[i];
+		ret = &pl[i];
+	}
+
+	return ret;
+}
+
+
+static void
+GenerateDrawSpans (struct drawsurf_s *surf)
+{
+}
+
+
+static void
+GenerateDrawEdges (unsigned int edgeloop_start, int numedges, struct cplane_s *clips)
+{
+}
+
+
+static void
+GenerateDrawSurf (struct msurface_s *surf, struct cplane_s *clips)
+{
+	if (surfs_p == surfs_end)
+		return;
+	if (edges_p + surf->numedges + 2 > edges_end)
+		return;
+
+	struct drawedge_s *firstedge = edges_p;
+
+	if (edges_p == firstedge)
+	{
+		/* nothing visible */
+		return;
+	}
+
+	// emit drawpoly
+}
 
 
 void
 R_GenSpansForSurfaces (unsigned int first, int count, int cplanes[4], int numcplanes, int backface_check)
 {
-	// stage 1: emit drawpolys and drawedges for those drawpolys
-	// stage 2: scan over the emitted drawpolys, emitting spans
-	// skip backfacing surfaces
+	struct cplane_s *clips = GetCPlanes (cplanes, numcplanes);
+	struct drawsurf_s *firstemit = surfs_p;
+
+	while (count-- > 0)
+	{
+		struct msurface_s *msurf = &map.surfaces[first++];
+
+		if (!backface_check || Map_DistFromSurface(msurf, camera.pos) >= SURF_BACKFACE_EPSILON)
+			GenerateDrawSurf (msurf, clips);
+	}
+
+	while (firstemit != surfs_p)
+		GenerateDrawSpans (firstemit++);
 }
 
 
 int
-R_CheckPortalVisibility (struct mportal_s *portal, int reversewinding)
+R_CheckPortalVisibility (struct mportal_s *portal, int cplanes[4], int numcplanes, int reversewinding)
 {
 	// run through the edges, emitting drawedges
 	// scan over the emitted drawedges; if a span is visible return true
 	// the only side-effect of this function will be emitted drawedges
+	//TODO: ...
 	return 0;
 }
 
@@ -67,12 +141,11 @@ R_Surf_BeginFrame (void *surfbuf, int surfbufsize, void *edgebuf, int edgebufsiz
 {
 	unsigned int cnt;
 
-	surfs = AlignAllocation (surfbuf, surfbufsize, sizeof(*surfs), &cnt);
+	surfs_p = surfs = AlignAllocation (surfbuf, surfbufsize, sizeof(*surfs), &cnt);
 	surfs_end = surfs + cnt;
 
-	edges = AlignAllocation (edgebuf, edgebufsize, sizeof(*edges), &cnt);
+	edges_p = edges = AlignAllocation (edgebuf, edgebufsize, sizeof(*edges), &cnt);
 	edges_end = edges + cnt;
-
-	//...
-	//...
+	if (cnt > 65536)
+		F_Error ("too mant drawedges (%d)", cnt);
 }

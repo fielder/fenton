@@ -4,14 +4,12 @@
 #include "map.h"
 #include "render.h"
 
-#define SURF_BACKFACE_EPSILON 0.01
-
 
 extern void
 R_GenSpansForSurfaces (unsigned int first, int count, int cplanes[4], int numcplanes, int backface_check);
 
 extern int
-R_CheckPortalVisibility (struct mportal_s *portal, int reversewinding);
+R_CheckPortalVisibility (struct mportal_s *portal, int cplanes[4], int numcplanes, int reversewinding);
 
 extern void
 R_Surf_BeginFrame (void *surfbuf, int surfbufsize, void *edgebuf, int edgebufsize);
@@ -30,52 +28,35 @@ VisitLeaf (struct mleaf_s *leaf, int cplanes[4], int numcplanes)
 static void
 VisitNode (struct mnode_s *node, int cplanes[4], int numcplanes)
 {
+	int portal_visible = 0;
 	double dist;
 	int side;
 
 	/* find which side of the plane the camera is on */
-	{
-		struct mplane_s *pl = &map.planes[node->plane];
-		if (pl->type == NORMAL_X)
-			dist = camera.pos[0] - pl->dist;
-		else if (pl->type == NORMAL_NEGX)
-			dist = -pl->dist - camera.pos[0];
-		else if (pl->type == NORMAL_Y)
-			dist = camera.pos[1] - pl->dist;
-		else if (pl->type == NORMAL_NEGY)
-			dist = -pl->dist - camera.pos[1];
-		else if (pl->type == NORMAL_Z)
-			dist = camera.pos[2] - pl->dist;
-		else if (pl->type == NORMAL_NEGZ)
-			dist = -pl->dist - camera.pos[2];
-		else
-			dist = Vec_Dot(camera.pos, pl->normal) - pl->dist;
-		side = dist < 0.0;
-	}
-
-	int portal_visible = 0;
+	dist = Map_DistFromPlane (&map.planes[node->plane], camera.pos);
+	side = dist < 0.0;
 
 	if (side == 0)
 	{
 		VisitNodeRecursive (node->children[0], cplanes, numcplanes);
 
-		if (dist > SURF_BACKFACE_EPSILON)
+		if (dist >= SURF_BACKFACE_EPSILON)
 		{
 			struct mportal_s *portal;
 			int i;
 
-			//TODO: reuse the side,dist... actually... even useful?
 			R_GenSpansForSurfaces (	node->front_firstsurface,
 						node->front_numsurfs,
 						cplanes,
 						numcplanes,
-						0 );
+						0 /* backface check unnecessary since we're drawing front surfs */
+						);
 
 			for (	i = 0, portal = map.portals + node->firstportal;
 				i < node->numportals;
 				i++, portal++ )
 			{
-				if (R_CheckPortalVisibility(portal, 0))
+				if (R_CheckPortalVisibility(portal, cplanes, numcplanes, 0))
 				{
 					portal_visible = 1;
 					break;
@@ -90,7 +71,7 @@ VisitNode (struct mnode_s *node, int cplanes[4], int numcplanes)
 		//May have to always descend the far side if we're on
 		//the node.
 		//play with this...
-			//portal_visible = 1;
+			portal_visible = 1;
 		}
 	}
 	else

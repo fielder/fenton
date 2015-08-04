@@ -148,4 +148,10 @@ Map_Unload (void);
 extern int
 Map_Load (const char *name);
 
+extern double
+Map_DistFromSurface (const struct msurface_s *msurf, const double p[3]);
+
+extern double
+Map_DistFromPlane (const struct mplane_s *mplane, const double p[3]);
+
 #endif /* __MAP_H__ */

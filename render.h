@@ -46,6 +46,7 @@ struct camera_s
 
 extern char * const vplane_names[4];
 extern struct camera_s camera;
+extern unsigned int r_framenum;
 
 extern void
 R_Init (void);
@@ -71,6 +72,8 @@ struct drawspan_s
 	short len;
 };
 
+extern struct drawspan_s *r_spans;
+
 extern void
 R_Span_Init (void);
 
@@ -91,6 +94,8 @@ extern void
 R_Span_DrawGSpans (void);
 
 /* world traverse */
+
+#define SURF_BACKFACE_EPSILON (1.0 / 16.0)
 
 extern void
 R_DrawWorld (void);

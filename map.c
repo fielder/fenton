@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <string.h>
 
+#include "vec.h"
 #include "bdat.h"
 #include "pak.h"
 #include "fdata.h"
@@ -450,4 +451,36 @@ failed:
 	loaddir = NULL;
 
 	return 0;
+}
+
+
+double
+Map_DistFromSurface (const struct msurface_s *msurf, const double p[3])
+{
+	double dist = Map_DistFromPlane (&map.planes[msurf->plane], p);
+	if (msurf->is_backside)
+		dist = -dist;
+	return dist;
+}
+
+
+double
+Map_DistFromPlane (const struct mplane_s *mplane, const double p[3])
+{
+	double dist;
+	if (mplane->type == NORMAL_X)
+		dist = p[0] - mplane->dist;
+	else if (mplane->type == NORMAL_NEGX)
+		dist = -mplane->dist - p[0];
+	else if (mplane->type == NORMAL_Y)
+		dist = p[1] - mplane->dist;
+	else if (mplane->type == NORMAL_NEGY)
+		dist = -mplane->dist - p[1];
+	else if (mplane->type == NORMAL_Z)
+		dist = p[2] - mplane->dist;
+	else if (mplane->type == NORMAL_NEGZ)
+		dist = -mplane->dist - p[2];
+	else
+		dist = Vec_Dot(p, mplane->normal) - mplane->dist;
+	return dist;
 }
