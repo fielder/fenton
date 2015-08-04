@@ -54,6 +54,23 @@ static struct drawedge_s *edges_p = NULL;
 static struct drawedge_s *edges_end = NULL;
 
 
+static void
+DrawSurfaceEdges (const struct msurface_s *msurf)
+{
+	int i;
+	for (i = 0; i < msurf->numedges; i++)
+	{
+		int e = map.edgeloops[msurf->edgeloop_start + i];
+		if (e < 0)
+			e = -e - 1;
+		R_3DLine (
+			map.vertices[map.edges[e].v[0]].xyz,
+			map.vertices[map.edges[e].v[1]].xyz,
+			msurf->color);
+	}
+}
+
+
 static struct cplane_s *
 GetCPlanes (int cplanes[4], int numcplanes)
 {
@@ -81,18 +98,22 @@ GenerateDrawSpans (struct drawsurf_s *surf)
 
 
 static void
-GenerateDrawEdges (unsigned int edgeloop_start, int numedges, struct cplane_s *clips)
+GenerateDrawEdges (unsigned int edgeloop_start, int numedges, const struct cplane_s *clips)
 {
 }
 
 
 static void
-GenerateDrawSurf (struct msurface_s *surf, struct cplane_s *clips)
+GenerateDrawSurf (struct msurface_s *msurf, const struct cplane_s *clips)
 {
 	if (surfs_p == surfs_end)
 		return;
-	if (edges_p + surf->numedges + 2 > edges_end)
+	if (edges_p + msurf->numedges + 2 > edges_end)
 		return;
+
+/* debug */
+DrawSurfaceEdges (msurf);
+return;
 
 	struct drawedge_s *firstedge = edges_p;
 

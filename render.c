@@ -198,11 +198,11 @@ R_Refresh (void)
 //	R_DrawLine(50,38,277,205,0x0000ff00); // G - bits 8-15
 //	R_DrawLine(50,46,277,213,0x00ff0000); // R - bits 16-23
 //
-	if (1)
+	if (0)
 	{
 		int i;
-		//for (i = 0; i < map.num_vertices; i++)
-		//	R_3DPoint(map.vertices[i].xyz);
+		for (i = 0; i < map.num_vertices; i++)
+			R_3DPoint(map.vertices[i].xyz,0xffffffff);
 		for (i = 0; i < map.num_edges; i++)
 			R_3DLine (map.vertices[map.edges[i].v[0]].xyz, map.vertices[map.edges[i].v[1]].xyz, 0xffffffff);
 	}

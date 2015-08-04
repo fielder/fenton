@@ -1,8 +1,8 @@
 #include <string.h>
 
+#include "render.h"
 #include "appio.h"
 #include "vec.h"
-#include "render.h"
 
 
 void
