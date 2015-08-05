@@ -17,16 +17,20 @@ struct cplane_s
 
 struct drawsurf_s
 {
-	struct drawedge_s *edges[2]; /* left/right on the screen */
-
 	struct drawspan_s *spans;
-	int numspans;
 
 	unsigned int surfnum;
+
+	unsigned short numspans;
+
+	unsigned short firstdrawedge;
+	unsigned short numdrawedges;
 
 #if 0
 	//TODO: texture mapping stuff
 #endif
+
+	char pad[6]; /* align on 8-byte boundary */
 };
 
 struct drawedge_s
@@ -35,13 +39,13 @@ struct drawedge_s
 
 	int u, du; /* 12.20 fixed-point format */
 
-	unsigned short next; /* in v-sorted list of drawedges for the poly */
+	//unsigned short next; /* in v-sorted list of drawedges for the poly */
 
 	short top, bottom;
 
 	unsigned char clipflags;
 
-	char pad[1]; /* align to 20 bytes */
+	char pad[3]; /* align to 20 bytes */
 };
 
 static struct drawsurf_s *surfs = NULL;
@@ -54,6 +58,13 @@ static struct drawedge_s *edges_end = NULL;
 
 
 static void
+DrawSurfEdge (int e, int c)
+{
+	R_3DLine (map.vertices[map.edges[e].v[0]].xyz, map.vertices[map.edges[e].v[1]].xyz, c);
+}
+
+
+static void
 DrawSurfaceEdges (const struct msurface_s *msurf)
 {
 	int i;
@@ -62,10 +73,7 @@ DrawSurfaceEdges (const struct msurface_s *msurf)
 		int e = map.edgeloops[msurf->edgeloop_start + i];
 		if (e < 0)
 			e = -e - 1;
-		R_3DLine (
-			map.vertices[map.edges[e].v[0]].xyz,
-			map.vertices[map.edges[e].v[1]].xyz,
-			((uintptr_t)msurf >> 4) & 0xffffff);
+		DrawSurfEdge (e, ((uintptr_t)msurf >> 4) & 0xffffff);
 	}
 }
 
@@ -93,36 +101,47 @@ GetCPlanes (int cplanes[4], int numcplanes)
 static void
 GenerateDrawSpans (struct drawsurf_s *surf)
 {
+	//int ordered_left[100];
+	//int ordered_right[100];
+	// store indices (from edges[]) of sorted edges
+
+	surf->spans = r_spans;
+
+	//...
+
+	surf->numspans = r_spans - surf->spans;
 }
 
 
-static void
+static int
 GenerateDrawEdges (unsigned int edgeloop_start, int numedges, const struct cplane_s *clips)
 {
+//	if (edges_p + msurf->numedges + 2 > edges_end)
+//		return;
+	//...
+
+	return 0;
 }
 
 
 static void
 GenerateDrawSurf (struct msurface_s *msurf, const struct cplane_s *clips)
 {
+	int nume;
+
 	if (surfs_p == surfs_end)
 		return;
-	if (edges_p + msurf->numedges + 2 > edges_end)
+
+	surfs_p->surfnum = msurf - map.surfaces;
+	surfs_p->firstdrawedge = edges_p - edges;
+
+	if (!(nume = GenerateDrawEdges(msurf->edgeloop_start, msurf->numedges, clips)))
 		return;
 
-/* debug */
-DrawSurfaceEdges (msurf);
-return;
+	/* finish and emit drawsurf */
+	surfs_p->numdrawedges = nume;
 
-	struct drawedge_s *firstedge = edges_p;
-
-	if (edges_p == firstedge)
-	{
-		/* nothing visible */
-		return;
-	}
-
-	// emit drawsurf
+	surfs_p++;
 }
 
 
