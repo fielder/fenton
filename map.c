@@ -214,7 +214,7 @@ LoadEdgeLoops (void)
 struct dsurface_s
 {
 	unsigned int planenum;
-	unsigned short is_backside;
+	unsigned char is_backside;
 	unsigned int edgeloop_start;
 	unsigned short numedges;
 } __attribute__ ((packed));
@@ -239,10 +239,9 @@ LoadSurfaces (void)
 		cnt--, in++, out++ )
 	{
 		out->plane = GetInt (&in->planenum);
-		out->is_backside = GetShort (&in->is_backside);
+		out->is_backside = GetByte (&in->is_backside);
 		out->edgeloop_start = GetInt (&in->edgeloop_start);
 		out->numedges = GetShort (&in->numedges);
-		out->color = ((uintptr_t)out >> 4) & 0x00ffffff;
 	}
 
 	free (dsurfaces);

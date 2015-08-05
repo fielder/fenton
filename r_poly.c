@@ -17,15 +17,12 @@ struct cplane_s
 
 struct drawsurf_s
 {
-	unsigned int surfnum;
-	char blah[28];
-
 	struct drawedge_s *edges[2]; /* left/right on the screen */
 
 	struct drawspan_s *spans;
 	int numspans;
 
-	struct mpoly_s *mpoly;
+	unsigned int surfnum;
 
 #if 0
 	//TODO: texture mapping stuff
@@ -42,7 +39,9 @@ struct drawedge_s
 
 	short top, bottom;
 
-	char pad[2]; /* align to 20 bytes */
+	unsigned char clipflags;
+
+	char pad[1]; /* align to 20 bytes */
 };
 
 static struct drawsurf_s *surfs = NULL;
@@ -66,7 +65,7 @@ DrawSurfaceEdges (const struct msurface_s *msurf)
 		R_3DLine (
 			map.vertices[map.edges[e].v[0]].xyz,
 			map.vertices[map.edges[e].v[1]].xyz,
-			msurf->color);
+			((uintptr_t)msurf >> 4) & 0xffffff);
 	}
 }
 
@@ -123,7 +122,7 @@ return;
 		return;
 	}
 
-	// emit drawpoly
+	// emit drawsurf
 }
 
 

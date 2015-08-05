@@ -49,11 +49,11 @@ struct msurface_s
 	unsigned int plane;
 	unsigned int edgeloop_start;
 	unsigned short numedges;
-	short is_backside;
+	unsigned char is_backside;
 
-	unsigned int color;//texnum;
+	//unsigned int texnum;
 
-	//char align_padding[4]; /* to 48 bytes */
+	char align_padding[1];
 };
 
 struct mtexvecs_s

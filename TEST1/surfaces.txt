@@ -1,5 +1,5 @@
 # plane, is backside, edgeloop start, num edges
-format <IHIH
+format <IBIH
 
 # floor
 0 0 0 4
