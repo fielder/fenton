@@ -134,7 +134,7 @@ F_Init (void)
 	w = 320;
 	h = 240;
 	bpp = 24;
-	scale = 2;
+	scale = 1;
 	full = 0;
 	IO_SetMode (w, h, bpp, scale, full);
 

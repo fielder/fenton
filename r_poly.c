@@ -1,11 +1,15 @@
+#include <string.h>
 #include <stdio.h>
 #include <stdint.h>
 
+#include "appio.h"
 #include "vec.h"
 #include "fenton.h"
 #include "bdat.h"
 #include "map.h"
 #include "render.h"
+
+#define MAX_DRAWEDGES 65535
 
 struct cplane_s
 {
@@ -19,7 +23,7 @@ struct drawsurf_s
 {
 	struct drawspan_s *spans;
 
-	unsigned int surfnum;
+	unsigned int msurfidx;
 
 	unsigned short numspans;
 
@@ -39,13 +43,11 @@ struct drawedge_s
 
 	int u, du; /* 12.20 fixed-point format */
 
-	//unsigned short next; /* in v-sorted list of drawedges for the poly */
-
 	short top, bottom;
 
-	unsigned char clipflags;
+	unsigned short next; /* in v-sorted list of drawedges for the poly */
 
-	char pad[3]; /* align to 20 bytes */
+	char pad[2]; /* align to 20 bytes */
 };
 
 static struct drawsurf_s *surfs = NULL;
@@ -60,6 +62,8 @@ static struct drawedge_s *edges_end = NULL;
 static void
 DrawSurfEdge (int e, int c)
 {
+	if (e < 0)
+		e = -e - 1;
 	R_3DLine (map.vertices[map.edges[e].v[0]].xyz, map.vertices[map.edges[e].v[1]].xyz, c);
 }
 
@@ -67,14 +71,9 @@ DrawSurfEdge (int e, int c)
 static void
 DrawSurfaceEdges (const struct msurface_s *msurf)
 {
-	int i;
+	int i, c = ((uintptr_t)msurf >> 4) & 0xffffff;
 	for (i = 0; i < msurf->numedges; i++)
-	{
-		int e = map.edgeloops[msurf->edgeloop_start + i];
-		if (e < 0)
-			e = -e - 1;
-		DrawSurfEdge (e, ((uintptr_t)msurf >> 4) & 0xffffff);
-	}
+		DrawSurfEdge (map.edgeloops[msurf->edgeloop_start + i], c);
 }
 
 
@@ -89,8 +88,8 @@ GetCPlanes (int cplanes[4], int numcplanes)
 	{
 		Vec_Copy (camera.vplanes[cplanes[i]].normal, pl[i].normal);
 		pl[i].dist = camera.vplanes[cplanes[i]].dist;
-		pl[i].next = ret;
 		pl[i].planeid = cplanes[i];
+		pl[i].next = ret;
 		ret = &pl[i];
 	}
 
@@ -99,47 +98,175 @@ GetCPlanes (int cplanes[4], int numcplanes)
 
 
 static void
-GenerateDrawSpans (struct drawsurf_s *surf)
+ScanEdges (struct drawedge_s *drawedges, int count)
 {
-	//int ordered_left[100];
-	//int ordered_right[100];
-	// store indices (from edges[]) of sorted edges
+	if (count < 2)
+	{
+		/* shouldn't happen... ?? */
+		return;
+	}
 
-	surf->spans = r_spans;
+#define LRBUFH 2048
+	int lefts[LRBUFH], rights[LRBUFH];
+	int y, u;
+	memset (lefts, 0xff, sizeof(lefts));
+	memset (rights, 0xff, sizeof(rights));
+	for (; count > 0; drawedges++, count--)
+	{
+		y = drawedges->top;
+		u = drawedges->u;
+		while (y <= drawedges->bottom)
+		{
+			if (y >= 0 && y < video.h)
+			{
+				if (lefts[y] == -1)
+				{
+					lefts[y] = u;
+				}
+				else
+				{
+					if (u >= lefts[y])
+					{
+						rights[y] = u;
+					}
+					else
+					{
+						rights[y] = lefts[y];
+						lefts[y] = u;
+					}
+				}
+			}
+			y++;
+			u += drawedges->du;
+		}
+	}
+
+	int *l, *r;
+	for (y = 0, l = lefts, r = rights; y < LRBUFH; y++, l++, r++)
+	{
+		if (*l != -1 && *r != -1)
+			R_Span_ClipAndEmit (y, *l >> 20, *r >> 20);
+	}
+
+#if 0
+	int u_l, u_r;
+	int du_l, du_r;
+	int v;
+	int bottom;
+
+	{
+		struct drawedge_s *a, *b;
+		a = drawedges;
+		drawedges = &edges[drawedges->next];
+		b = drawedges;
+		drawedges = &edges[drawedges->next];
+
+		if (a->top != b->top)
+		{
+		}
+
+		if (a->u < b->u)
+		{
+			u_l = a->u;
+			du_l = a->du;
+			u_r = b->u;
+			du_r = b->du;
+		}
+		else if (a->u > b->u)
+		{
+		}
+		else
+		{
+		}
+	}
 
 	//...
-
-	surf->numspans = r_spans - surf->spans;
+	//...
+#endif
 }
 
 
 static int
 GenerateDrawEdges (unsigned int edgeloop_start, int numedges, const struct cplane_s *clips)
 {
-//	if (edges_p + msurf->numedges + 2 > edges_end)
-//		return;
-	//...
+	if (edges_p + numedges + 2 > edges_end)
+		return 0;
 
-	return 0;
+	{
+		edges_p->top = 100;
+		edges_p->bottom = 200;
+		edges_p->u = 100 * (1<<20);
+		edges_p->du = 0;
+		edges_p++;
+		edges_p->top = 100;
+		edges_p->bottom = 150;
+		edges_p->u = 100 * (1<<20);
+		edges_p->du = 1<<20;
+		edges_p++;
+		edges_p->top = 150;
+		edges_p->bottom = 200;
+		edges_p->u = 150 * (1<<20);
+		edges_p->du = -(1<<20);
+		edges_p++;
+		return 3;
+	}
+
+	struct drawedge_s *firstemit = edges_p;
+	int *eptr = &map.edgeloops[edgeloop_start];
+
+	while (numedges-- > 0)
+	{
+		int e = *eptr++;
+
+		if (e < 0)
+		{
+			e = -e - 1;
+			struct medge_s *medge = &map.edges[e];
+		}
+		else
+		{
+			struct medge_s *medge = &map.edges[e];
+			unsigned int cacheidx = medge->cachenum & ~0x80000000;
+
+			if (medge->cachenum & 0x80000000)
+			{
+				if (cacheidx == r_framenum)
+				{
+					/* already visited this edge this
+					 * frame; it's fully off the screen */
+					continue;
+				}
+			}
+			else// if ()
+			{
+				continue;
+			}
+
+			// clip new and maybe cache
+			//...
+		}
+	}
+
+	return edges_p - firstemit;
 }
 
 
 static void
 GenerateDrawSurf (struct msurface_s *msurf, const struct cplane_s *clips)
 {
-	int nume;
+	int edgecnt;
 
 	if (surfs_p == surfs_end)
 		return;
 
-	surfs_p->surfnum = msurf - map.surfaces;
 	surfs_p->firstdrawedge = edges_p - edges;
 
-	if (!(nume = GenerateDrawEdges(msurf->edgeloop_start, msurf->numedges, clips)))
+	if ((edgecnt = GenerateDrawEdges(msurf->edgeloop_start, msurf->numedges, clips)) == 0)
 		return;
 
 	/* finish and emit drawsurf */
-	surfs_p->numdrawedges = nume;
+	surfs_p->msurfidx = msurf - map.surfaces;
+	surfs_p->numdrawedges = edgecnt;
 
 	surfs_p++;
 }
@@ -159,8 +286,14 @@ R_GenSpansForSurfaces (unsigned int first, int count, int cplanes[4], int numcpl
 			GenerateDrawSurf (msurf, clips);
 	}
 
+	/* create spans */
 	while (firstemit != surfs_p)
-		GenerateDrawSpans (firstemit++);
+	{
+		firstemit->spans = r_spans;
+		ScanEdges (&edges[firstemit->firstdrawedge], firstemit->numdrawedges);
+		firstemit->numspans = r_spans - firstemit->spans;
+		firstemit++;
+	}
 }
 
 
@@ -185,6 +318,47 @@ R_Surf_BeginFrame (void *surfbuf, int surfbufsize, void *edgebuf, int edgebufsiz
 
 	edges_p = edges = AlignAllocation (edgebuf, edgebufsize, sizeof(*edges), &cnt);
 	edges_end = edges + cnt;
-	if (cnt > 65536)
+	if (cnt > MAX_DRAWEDGES)
 		F_Error ("too mant drawedges (%d)", cnt);
+
+	edges_p++; /* index 0 is used for NULL drawedge */
+}
+
+
+static void
+DrawSpan (struct drawspan_s *s, int c)
+{
+	if (video.bpp == 16)
+	{
+		unsigned short *dest = (unsigned short *)video.rows[s->v] + s->u;
+		unsigned short *end = dest + s->len;
+		while (dest != end)
+			*dest++ = c;
+	}
+	else
+	{
+		unsigned int *dest = (unsigned int *)video.rows[s->v] + s->u;
+		unsigned int *end = dest + s->len;
+		while (dest != end)
+			*dest++ = c;
+	}
+}
+
+
+void
+R_Surf_DrawDebug ()
+{
+	struct drawsurf_s *drawsurf;
+	int num;
+
+	for (drawsurf = surfs, num = 0; drawsurf != surfs_p; drawsurf++, num++)
+	{
+		int c = ((uintptr_t)&map.surfaces[drawsurf->msurfidx] >> 4) & 0xffffff;
+		int i;
+		for (i = 0; i < drawsurf->numspans; i++)
+			DrawSpan (&drawsurf->spans[i], c);
+	}
+
+	if (0)
+		printf("%u: %d surfs\n", r_framenum, num);
 }

@@ -1,4 +1,6 @@
 *.swp
+*~
+*.patch
 
 # Object files
 *.o

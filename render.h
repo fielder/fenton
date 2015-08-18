@@ -100,6 +100,9 @@ R_Span_DrawGSpans (void);
 extern void
 R_DrawWorld (void);
 
+extern void
+R_Surf_DrawDebug ();
+
 /* misc */
 
 extern void

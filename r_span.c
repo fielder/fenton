@@ -258,7 +258,7 @@ R_Span_BeginFrame (void *buf, int buflen)
  * screen should be filled by the rendered world so there should never
  * be any gspans visible.
  */
-#if 1
+#if 0
 void
 R_Span_DrawGSpans (void)
 {

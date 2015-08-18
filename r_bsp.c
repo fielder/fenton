@@ -154,6 +154,9 @@ R_DrawWorld (void)
 	else if (map.num_leafs > 0)
 		VisitNodeRecursive (map.leafs, planes, 4);
 
+	if (0)
+		R_Surf_DrawDebug ();
+
 	//TODO: draw textured surface spans
 	//	texturing, lighting, z fill
 	//NOTE: we could have emitted surfaces w/o spans; skip them
