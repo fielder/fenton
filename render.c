@@ -206,7 +206,9 @@ R_Refresh (void)
 		for (i = 0; i < map.num_edges; i++)
 			R_3DLine (map.vertices[map.edges[i].v[0]].xyz, map.vertices[map.edges[i].v[1]].xyz, 0xffffffff);
 	}
-	R_Span_DrawGSpans ();
+
+	if (1)
+		R_Span_DrawGSpans ();
 
 	r_framenum++;
 }

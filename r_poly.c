@@ -39,7 +39,7 @@ struct drawsurf_s
 
 struct drawedge_s
 {
-	unsigned int owner; /* medge this drawedge came from */
+	unsigned int medgeidx; /* medge this drawedge came from */
 
 	int u, du; /* 12.20 fixed-point format */
 
@@ -69,11 +69,18 @@ DrawSurfEdge (int e, int c)
 
 
 static void
-DrawSurfaceEdges (const struct msurface_s *msurf)
+DrawSurfaceEdges (const struct msurface_s *msurf, int c)
 {
-	int i, c = ((uintptr_t)msurf >> 4) & 0xffffff;
+	int i;
 	for (i = 0; i < msurf->numedges; i++)
 		DrawSurfEdge (map.edgeloops[msurf->edgeloop_start + i], c);
+}
+
+
+static void
+DrawSurfaceEdges2 (const struct msurface_s *msurf)
+{
+	DrawSurfaceEdges (msurf, ((uintptr_t)msurf >> 4) & 0xffffff);
 }
 
 
@@ -97,6 +104,15 @@ GetCPlanes (int cplanes[4], int numcplanes)
 }
 
 
+static int
+ClampU (int u)
+{
+	if (u < 0) return 0;
+	if (u >= video.w * (1<<20)) return video.w * (1<<20) - 1;
+	return u;
+}
+
+
 static void
 ScanEdges (struct drawedge_s *drawedges, int count)
 {
@@ -108,31 +124,30 @@ ScanEdges (struct drawedge_s *drawedges, int count)
 
 #define LRBUFH 2048
 	int lefts[LRBUFH], rights[LRBUFH];
-	int y, u;
 	memset (lefts, 0xff, sizeof(lefts));
 	memset (rights, 0xff, sizeof(rights));
 	for (; count > 0; drawedges++, count--)
 	{
-		y = drawedges->top;
-		u = drawedges->u;
+		int y = drawedges->top;
+		int u = drawedges->u;
 		while (y <= drawedges->bottom)
 		{
 			if (y >= 0 && y < video.h)
 			{
 				if (lefts[y] == -1)
 				{
-					lefts[y] = u;
+					lefts[y] = ClampU (u);
 				}
 				else
 				{
 					if (u >= lefts[y])
 					{
-						rights[y] = u;
+						rights[y] = ClampU (u);
 					}
 					else
 					{
 						rights[y] = lefts[y];
-						lefts[y] = u;
+						lefts[y] = ClampU (u);
 					}
 				}
 			}
@@ -141,7 +156,7 @@ ScanEdges (struct drawedge_s *drawedges, int count)
 		}
 	}
 
-	int *l, *r;
+	int y, *l, *r;
 	for (y = 0, l = lefts, r = rights; y < LRBUFH; y++, l++, r++)
 	{
 		if (*l != -1 && *r != -1)
@@ -186,12 +201,108 @@ ScanEdges (struct drawedge_s *drawedges, int count)
 }
 
 
+static void
+EmitEdge (const float v1[3], const float v2[3], int cacheable)
+{
+#if 0
+	float u1_f, v1_f;
+	int v1_i;
+
+	float u2_f, v2_f;
+	int v2_i;
+
+	float du;
+
+	float local[3], out[3];
+	float scale;
+
+	/* the pixel containment rule says an edge point exactly on the
+	 * center of a pixel vertically will be considered to cover that
+	 * pixel */
+
+	Vec_Subtract (v1, camera.pos, local);
+	Vec_Transform (camera.xform, local, out);
+	scale = camera.dist / out[2];
+	u1_f = camera.center_x - scale * out[0];
+	v1_f = camera.center_y - scale * out[1];
+
+	Vec_Subtract (v2, camera.pos, local);
+	Vec_Transform (camera.xform, local, out);
+	scale = camera.dist / out[2];
+	u2_f = camera.center_x - scale * out[0];
+	v2_f = camera.center_y - scale * out[1];
+
+	v1_i = ceil (v1_f - 0.5);
+	v2_i = ceil (v2_f - 0.5);
+
+	if (v1_i == v2_i)
+	{
+		/* doesn't cross a pixel center vertically */
+		return 0;
+	}
+	else if (v1_i < v2_i)
+	{
+		/* left-side edge, running down the screen */
+
+		if (v2_i <= 0 || v1_i >= video.h)
+		{
+			/* math imprecision sometimes results in nearly-horizontal
+			 * emitted edges just above or just below the screen */
+			return 0;
+		}
+
+		du = (u2_f - u1_f) / (v2_f - v1_f);
+		e->u = (u1_f + du * (v1_i + 0.5 - v1_f)) * 0x100000;
+		e->u += ((1 << 20) / 2) - 1; /* pre-adjust screen x coords so we end up with the correct pixel after shifting down */
+		e->du = du * 0x100000;
+		e->top = v1_i;
+		e->bottom = v2_i - 1; /* this edge's last row is 1 pixel above the top pixel of the next edge */
+		r_edges_left = LinkEdge (e, r_edges_left);
+	}
+	else
+	{
+		/* right-side edge, running up the screen */
+
+		if (v1_i <= 0 || v2_i >= video.h)
+		{
+			/* math imprecision sometimes results in nearly-horizontal
+			 * emitted edges just above or just below the screen */
+			return 0;
+		}
+
+		du = (u1_f - u2_f) / (v1_f - v2_f);
+		e->u = (u2_f + du * (v2_i + 0.5 - v2_f)) * 0x100000;
+		e->u -= ((1 << 20) / 2); /* pre-adjust screen x coords so we end up with the correct pixel after shifting down */
+		e->du = du * 0x100000;
+		e->top = v2_i;
+		e->bottom = v1_i - 1; /* this edge's last row is 1 pixel above the top pixel of the next edge */
+		r_edges_right = LinkEdge (e, r_edges_right);
+	}
+
+	return 1;
+#endif
+}
+
+
+static void
+EmitCached (const struct drawedge_s *e)
+{
+	edges_p->medgeidx = e->medgeidx;
+	edges_p->u = e->u;
+	edges_p->du = e->du;
+	edges_p->top = e->top;
+	edges_p->bottom = e->bottom;
+	edges_p++;
+}
+
+
 static int
 GenerateDrawEdges (unsigned int edgeloop_start, int numedges, const struct cplane_s *clips)
 {
 	if (edges_p + numedges + 2 > edges_end)
 		return 0;
 
+	if (0)
 	{
 		edges_p->top = 100;
 		edges_p->bottom = 200;
@@ -212,16 +323,24 @@ GenerateDrawEdges (unsigned int edgeloop_start, int numedges, const struct cplan
 	}
 
 	struct drawedge_s *firstemit = edges_p;
-	int *eptr = &map.edgeloops[edgeloop_start];
+	int *eloop_ptr = &map.edgeloops[edgeloop_start];
 
 	while (numedges-- > 0)
 	{
-		int e = *eptr++;
+		int e = *eloop_ptr++;
+
+		/* NOTE: need to know edge direction to know enter/exit
+		 * when edges hit L/R planes */
 
 		if (e < 0)
 		{
 			e = -e - 1;
 			struct medge_s *medge = &map.edges[e];
+
+			//TODO: pretty much copy from the else
+			// this needed only w/ maps w/ polys that
+			// share edges
+			//...
 		}
 		else
 		{
@@ -237,8 +356,12 @@ GenerateDrawEdges (unsigned int edgeloop_start, int numedges, const struct cplan
 					continue;
 				}
 			}
-			else// if ()
+			else if (	cacheidx > 0 &&
+					cacheidx < (edges_p - edges) &&
+					edges[cacheidx].medgeidx == e )
 			{
+				/* note drawedge index 0 is invalid (used as NULL drawedge) */
+				EmitCached (&edges[cacheidx]);
 				continue;
 			}
 
@@ -246,6 +369,10 @@ GenerateDrawEdges (unsigned int edgeloop_start, int numedges, const struct cplan
 			//...
 		}
 	}
+
+	//TODO: when the better scanline generation algo
+	// is in place we'll need to set up each drawedge's next
+	// so the emitted drawedge cluster is sorted by v
 
 	return edges_p - firstemit;
 }
@@ -357,6 +484,7 @@ R_Surf_DrawDebug ()
 		int i;
 		for (i = 0; i < drawsurf->numspans; i++)
 			DrawSpan (&drawsurf->spans[i], c);
+		DrawSurfaceEdges (&map.surfaces[drawsurf->msurfidx], 0);
 	}
 
 	if (0)

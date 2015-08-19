@@ -1,0 +1,4 @@
+# plane, is backside, edgeloop start, num edges
+format <IBIH
+
+0 0 0 4
