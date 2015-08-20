@@ -103,12 +103,13 @@ GetCPlanes (int cplanes[4], int numcplanes)
 	return ret;
 }
 
-
 static int
 ClampU (int u)
 {
-	if (u < 0) return 0;
-	if (u >= video.w * (1<<20)) return video.w * (1<<20) - 1;
+	if (u < 0)
+		return 0;
+	if (u >= video.w * (1<<20))
+		return video.w * (1<<20) - 1;
 	return u;
 }
 
@@ -295,6 +296,30 @@ EmitCached (const struct drawedge_s *e)
 	edges_p++;
 }
 
+static double *clip_v1;
+static double *clip_v2;
+static double *enter_left, *exit_left;
+static double *enter_right, *exit_right;
+static double _ent_l[3], _ext_l[3];
+static double _ent_r[3], _ext_r[3];
+
+enum
+{
+	CLIPFL_NONE,
+	CLIPFL_REJECT_LR,
+//	CLIPFL_exit left,
+//	CLIPFL_enter left,
+//	CLIPFL_exit right,
+//	CLIPFL_enter right,
+};
+
+static int
+ClipEdge (const struct cplane_s *clips)
+{
+	//...
+	return 0;
+}
+
 
 static int
 GenerateDrawEdges (unsigned int edgeloop_start, int numedges, const struct cplane_s *clips)
@@ -356,15 +381,29 @@ GenerateDrawEdges (unsigned int edgeloop_start, int numedges, const struct cplan
 					continue;
 				}
 			}
-			else if (	cacheidx > 0 &&
+			else if (	cacheidx > 0 && // note drawedge index 0 is invalid (used as NULL drawedge)
 					cacheidx < (edges_p - edges) &&
 					edges[cacheidx].medgeidx == e )
 			{
-				/* note drawedge index 0 is invalid (used as NULL drawedge) */
 				EmitCached (&edges[cacheidx]);
 				continue;
 			}
 
+			clip_v1 = map.vertices[medge->v[0]].xyz;
+			clip_v2 = map.vertices[medge->v[1]].xyz;
+
+			enter_left = NULL;
+			exit_left = NULL;
+			enter_right = NULL;
+			exit_right = NULL;
+
+			int fl = ClipEdge (clips);
+
+			if (fl == CLIPFL_REJECT_LR)
+			{
+				medge->cachenum = 0x80000000 | r_framenum;
+				continue;
+			}
 			// clip new and maybe cache
 			//...
 		}
