@@ -180,7 +180,8 @@ R_Refresh (void)
 
 	CalcViewPlanes ();
 
-	R_DrawWorld ();
+	if (1)
+		R_DrawWorld ();
 
 	if (1)
 	{
@@ -202,12 +203,18 @@ R_Refresh (void)
 	{
 		int i;
 		for (i = 0; i < map.num_vertices; i++)
+		{
 			R_3DPoint(map.vertices[i].xyz,0xffffffff);
+		}
 		for (i = 0; i < map.num_edges; i++)
-			R_3DLine (map.vertices[map.edges[i].v[0]].xyz, map.vertices[map.edges[i].v[1]].xyz, 0xffffffff);
+		{
+			R_3DLine (	map.vertices[map.edges[i].v[0]].xyz,
+					map.vertices[map.edges[i].v[1]].xyz,
+					0xffffffff );
+		}
 	}
 
-	if (1)
+	if (0)
 		R_Span_DrawGSpans ();
 
 	r_framenum++;

@@ -8,6 +8,7 @@
 
 #define PTR2IDX(PTR) ((int)((PTR) - gspans))
 #define IDX2PTR(IDX) (gspans + (IDX))
+#define NULLIDX 0
 
 /* green span */
 struct gspan_s
@@ -47,7 +48,7 @@ R_Span_Init (void)
 	gspans = malloc (count * sizeof(*gspans));
 
 	/* index 0 is used as the NULL value */
-	memset (&gspans[0], 0, sizeof(gspans[0]));
+	memset (&gspans[NULLIDX], 0, sizeof(gspans[NULLIDX]));
 
 	/* The first handful are reserved as each row's gspan
 	 * list head. ie: one element per screen row just for
@@ -61,7 +62,7 @@ R_Span_Init (void)
 	poolidx = i;
 	while (i < count)
 	{
-		gspans[i].nextidx = (i == count - 1) ? 0 : i + 1;
+		gspans[i].nextidx = (i == count - 1) ? NULLIDX : i + 1;
 		i++;
 	}
 }
@@ -75,7 +76,7 @@ R_Span_Cleanup (void)
 	gspans = NULL;
 	display_w = 0;
 	display_h = 0;
-	poolidx = 0;
+	poolidx = NULLIDX;
 	r_spans = NULL;
 	r_spans_end = NULL;
 }
@@ -178,7 +179,7 @@ R_Span_ClipAndEmit (int y, int x1, int x2)
 			/* the gspan hangs off the left of the span,
 			 * split the gspan */
 
-			if (poolidx == 0)
+			if (poolidx == NULLIDX)
 				return;
 
 			struct gspan_s *new = AllocGSpan ();
@@ -204,7 +205,7 @@ R_Span_ClipAndEmit (int y, int x1, int x2)
 			/* the gspan hangs off the right of the span,
 			 * split the gspan */
 
-			if (poolidx == 0)
+			if (poolidx == NULLIDX)
 				return;
 
 			struct gspan_s *new = AllocGSpan ();
@@ -231,9 +232,9 @@ R_Span_BeginFrame (void *buf, int buflen)
 
 	/* take any gspan still remaining on each row and toss back into
 	 * the pool */
-	for (i = 0; i < display_h; i++)
+	for (i = 1; i < display_h + 1; i++)
 	{
-		struct gspan_s *head = IDX2PTR(1 + i);
+		struct gspan_s *head = IDX2PTR(i);
 		struct gspan_s *next;
 		while ((next = IDX2PTR(head->nextidx)) != head)
 		{
@@ -243,12 +244,12 @@ R_Span_BeginFrame (void *buf, int buflen)
 	}
 
 	/* reset all rows with a gspan covering the entire row */
-	for (i = 0; i < display_h; i++)
+	for (i = 1; i < display_h + 1; i++)
 	{
 		struct gspan_s *gs = AllocGSpan ();
 		gs->left = 0;
 		gs->right = display_w - 1;
-		LinkAfter (IDX2PTR(1 + i), gs);
+		LinkAfter (IDX2PTR(i), gs);
 	}
 }
 

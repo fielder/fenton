@@ -2,7 +2,23 @@
 
 #include "render.h"
 #include "appio.h"
+#include "clip.h"
 #include "vec.h"
+
+
+void
+R_SimpleDrawPoly (double *xyz, int numverts, int c)
+{
+	int i;
+
+	clip_idx = 0;
+	for (i = 0; i < numverts; i++)
+		Vec_Copy (xyz + i * 3, clip_verts[clip_idx][i]);
+	clip_numverts = i;
+
+	//...
+	//...
+}
 
 
 void

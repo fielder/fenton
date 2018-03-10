@@ -16,7 +16,7 @@ struct cplane_s
 	double normal[3];
 	double dist;
 	struct cplane_s *next;
-	int planeid;
+	int vplaneidx;
 };
 
 struct drawsurf_s
@@ -95,7 +95,7 @@ GetCPlanes (int cplanes[4], int numcplanes)
 	{
 		Vec_Copy (camera.vplanes[cplanes[i]].normal, pl[i].normal);
 		pl[i].dist = camera.vplanes[cplanes[i]].dist;
-		pl[i].planeid = cplanes[i];
+		pl[i].vplaneidx = cplanes[i];
 		pl[i].next = ret;
 		ret = &pl[i];
 	}

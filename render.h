@@ -106,6 +106,9 @@ R_Surf_DrawDebug ();
 /* misc */
 
 extern void
+R_SimpleDrawPoly (double *xyz, int numverts, int c);
+
+extern void
 R_Clear (void);
 
 extern void

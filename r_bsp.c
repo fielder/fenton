@@ -140,22 +140,39 @@ VisitNodeRecursive (void *visit, int cplanes[4], int numcplanes)
 void
 R_DrawWorld (void)
 {
-	char spanbuf[32 * 1024];
-	char surfacebuf[32 * 1024];
-	char edgebuf[32 * 1024];
-
-	int planes[4] = { 0, 1, 2, 3 };
-
-	R_Surf_BeginFrame (surfacebuf, sizeof(surfacebuf), edgebuf, sizeof(edgebuf));
-	R_Span_BeginFrame (spanbuf, sizeof(spanbuf));
-
-	if (map.num_nodes > 0)
-		VisitNodeRecursive (map.nodes, planes, 4);
-	else if (map.num_leafs > 0)
-		VisitNodeRecursive (map.leafs, planes, 4);
-
 	if (0)
-		R_Surf_DrawDebug ();
+	{
+		char spanbuf[32 * 1024];
+		char surfacebuf[32 * 1024];
+		char edgebuf[32 * 1024];
+
+		int cplanes[4] = { 0, 1, 2, 3 };
+
+		R_Surf_BeginFrame (surfacebuf, sizeof(surfacebuf), edgebuf, sizeof(edgebuf));
+		R_Span_BeginFrame (spanbuf, sizeof(spanbuf));
+
+		if (map.num_nodes > 0)
+		{
+			VisitNodeRecursive (map.nodes, cplanes, 4);
+		}
+		else if (map.num_leafs > 0)
+		{
+			/* realistically would have only 1 leaf if there are no
+			 * nodes, but for dev testing we could have some partial
+			 * maps */
+			int i;
+			for (i = 0; i < map.num_leafs; i++)
+				VisitNodeRecursive (&map.leafs[i], cplanes, 4);
+		}
+		else
+		{
+			/* for dev purposes just draw all polys */
+			R_GenSpansForSurfaces (0, map.num_surfaces, cplanes, 4, 1);
+		}
+
+		if (0)
+			R_Surf_DrawDebug ();
+	}
 
 	//TODO: draw textured surface spans
 	//	texturing, lighting, z fill

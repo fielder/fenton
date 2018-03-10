@@ -1,7 +1,7 @@
 #ifndef __MAP_H__
 #define __MAP_H__
 
-// structs aligned to keep 8-byte doubles aligned
+/* structs aligned to keep 8-byte doubles aligned */
 
 enum
 {
@@ -58,6 +58,7 @@ struct msurface_s
 
 struct mtexvecs_s
 {
+	//TODO
 	int blahblah;
 	//double texvec_s[3];
 	//double texvec_t[3];

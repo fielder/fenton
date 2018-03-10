@@ -283,7 +283,7 @@ LoadPortals (void)
 	free (dportals);
 #endif
 
-	return 1;
+	return 0;
 }
 
 
@@ -291,7 +291,7 @@ static int
 LoadNodes (void)
 {
 	//...
-	return 1;
+	return 0;
 }
 
 
@@ -420,13 +420,13 @@ Map_Load (const char *name)
 	if (!LoadSurfaces())
 		goto failed;
 	if (!LoadPortals())
-		goto failed;
+		;//goto failed;
 	if (!LoadNodes())
-		goto failed;
+		;//goto failed;
 	if (!LoadLeafs())
-		goto failed;
+		;//goto failed;
 	if (!LoadTextures())
-		goto failed;
+		;//goto failed;
 
 	/* success; get rid of current map & switch over */
 
