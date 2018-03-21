@@ -7,21 +7,6 @@
 
 
 void
-R_SimpleDrawPoly (double *xyz, int numverts, int c)
-{
-	int i;
-
-	clip_idx = 0;
-	for (i = 0; i < numverts; i++)
-		Vec_Copy (xyz + i * 3, clip_verts[clip_idx][i]);
-	clip_numverts = i;
-
-	//...
-	//...
-}
-
-
-void
 R_Clear (void)
 {
 	memset (video.buf, 0, video.w * video.h * video.bytes_pp);
@@ -247,5 +232,42 @@ R_DrawLine (int x1, int y1, int x2, int y2, int c)
 				d += ax;
 			}
 		}
+	}
+}
+
+
+void
+R_SimpleDrawPoly (double *xyz, int numverts, int c)
+{
+	double normal[3];
+	double dist;
+	int i;
+
+	Vec_MakeNormal (xyz,
+			xyz + 3,
+			xyz + 3 * (numverts - 1),
+			normal,
+			&dist);
+	if (Vec_Dot(normal, camera.pos) - dist < SURF_BACKFACE_EPSILON)
+		return;
+
+	clip_idx = 0;
+	for (i = 0; i < numverts; i++)
+		Vec_Copy (xyz + i * 3, clip_verts[clip_idx][i]);
+	clip_numverts = i;
+
+	for (i = 0; i < 4; i++)
+	{
+		Clip_WithPlane (camera.vplanes[i].normal, camera.vplanes[i].dist);
+		if (clip_numverts <= 0)
+			return;
+	}
+
+	//TODO: draw filled
+	for (i = 0; i < clip_numverts; i++)
+	{
+		R_3DLine (clip_verts[clip_idx][i],
+			clip_verts[clip_idx][(i + 1) % clip_numverts],
+			c);
 	}
 }

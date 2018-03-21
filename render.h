@@ -106,9 +106,6 @@ R_Surf_DrawDebug ();
 /* misc */
 
 extern void
-R_SimpleDrawPoly (double *xyz, int numverts, int c);
-
-extern void
 R_Clear (void);
 
 extern void
@@ -125,5 +122,8 @@ R_3DPoint2 (double x, double y, double z, int c);
 
 extern void
 R_DrawLine (int x1, int y1, int x2, int y2, int c);
+
+extern void
+R_SimpleDrawPoly (double *xyz, int numverts, int c);
 
 #endif /* __RENDER_H__ */

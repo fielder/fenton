@@ -174,6 +174,11 @@ R_DrawWorld (void)
 			R_Surf_DrawDebug ();
 	}
 
+	if (1)
+	{
+		if (map.num_surfaces > 0)
+			R_SimpleDrawPoly ((double *)map.vertices, map.num_vertices, 0xffffffff);
+	}
 	//TODO: draw textured surface spans
 	//	texturing, lighting, z fill
 	//NOTE: we could have emitted surfaces w/o spans; skip them
