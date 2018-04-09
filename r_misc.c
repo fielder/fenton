@@ -236,6 +236,54 @@ R_DrawLine (int x1, int y1, int x2, int y2, int c)
 }
 
 
+typedef double xy_t[2];
+
+void
+R_2DPoly (double *xy, int numverts, int c)
+{
+	if (1)
+	{
+		/* wireframe */
+		int i;
+		for (i = 0; i < numverts; i++)
+		{
+			int x1 = (int)(xy[i * 2 + 0] + 0.5);
+			int y1 = (int)(xy[i * 2 + 1] + 0.5);
+			int x2 = (int)(xy[((i + 1) % numverts) * 2 + 0] + 0.5);
+			int y2 = (int)(xy[((i + 1) % numverts) * 2 + 1] + 0.5);
+			if (x1 < 0) x1 = 0;
+			if (x1 >= video.w) x1 = video.w - 1;
+			if (y1 < 0) y1 = 0;
+			if (y1 >= video.h) y1 = video.h - 1;
+			if (x2 < 0) x2 = 0;
+			if (x2 >= video.w) x2 = video.w - 1;
+			if (y2 < 0) y2 = 0;
+			if (y2 >= video.h) y2 = video.h - 1;
+			R_DrawLine (x1, y1, x2, y2, c);
+		}
+		return;
+	}
+	else
+	{
+		xy_t *xys = (xy_t *)xy;
+		int i;
+		double miny = 999999;
+		double maxy = -999999;
+
+		for (i = 0; i < numverts; i++)
+		{
+			if (xys[i][1] < miny)
+				miny = xys[i][1];
+			if (xys[i][1] > maxy)
+				maxy = xys[i][1];
+		}
+		//TODO: ...
+		//TODO: ...
+		//TODO: ...
+	}
+}
+
+
 void
 R_SimpleDrawPoly (double *xyz, int numverts, int c)
 {
@@ -259,15 +307,20 @@ R_SimpleDrawPoly (double *xyz, int numverts, int c)
 	for (i = 0; i < 4; i++)
 	{
 		Clip_WithPlane (camera.vplanes[i].normal, camera.vplanes[i].dist);
-		if (clip_numverts <= 0)
+		if (clip_numverts < 3)
 			return;
 	}
 
-	//TODO: draw filled
+	double xy[clip_numverts][2];
+	double local[3], out[3], scale;
 	for (i = 0; i < clip_numverts; i++)
 	{
-		R_3DLine (clip_verts[clip_idx][i],
-			clip_verts[clip_idx][(i + 1) % clip_numverts],
-			c);
+		Vec_Subtract (clip_verts[clip_idx][i], camera.pos, local);
+		Vec_Transform (camera.xform, local, out);
+		if (out[2] < 0.01) out[2] = 0.01;
+		scale = camera.dist / out[2];
+		xy[i][0] = camera.center_x - scale * out[0];
+		xy[i][1] = camera.center_y - scale * out[1];
 	}
+	R_2DPoly ((double *)xy, clip_numverts, c);
 }
