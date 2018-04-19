@@ -11,7 +11,7 @@
 #define FLYSPEED 64.0
 #define LOADPAK NULL
 
-#if 1
+#if 0
 /* wasd-style on a kinesis advantage w/ dvorak */
 static const int bind_forward = '.';
 static const int bind_back = 'e';
@@ -35,6 +35,7 @@ static struct
 	unsigned int calc_start;
 } fps;
 
+extern int r_gspan_debug;
 
 void
 F_Quit (void)
@@ -134,7 +135,7 @@ F_Init (void)
 	w = 320;
 	h = 240;
 	bpp = 24;
-	scale = 4;
+	scale = 2;
 	full = 0;
 	IO_SetMode (w, h, bpp, scale, full);
 
@@ -248,6 +249,9 @@ RunInput (void)
 		F_LoadMap ("TEST3");
 	if (input.key.release['4'])
 		F_LoadMap ("TEST4");
+
+	if (input.key.release['z'])
+		r_gspan_debug = !r_gspan_debug;
 
 	if (input.key.release['d'])
 	{

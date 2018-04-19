@@ -2,6 +2,7 @@
 
 #include "vec.h"
 #include "map.h"
+#include "appio.h"
 #include "render.h"
 
 
@@ -14,6 +15,9 @@ R_CheckPortalVisibility (struct mportal_s *portal, int cplanes[4], int numcplane
 extern void
 R_Surf_BeginFrame (void *surfbuf, int surfbufsize, void *edgebuf, int edgebufsize);
 
+extern void
+R_Surf_DrawDebug ();
+
 static void
 VisitNodeRecursive (void *visit, int cplanes[4], int numcplanes);
 
@@ -21,7 +25,9 @@ VisitNodeRecursive (void *visit, int cplanes[4], int numcplanes);
 static void
 VisitLeaf (struct mleaf_s *leaf, int cplanes[4], int numcplanes)
 {
+#if 0
 	R_GenSpansForSurfaces (leaf->firstsurface, leaf->numsurfaces, cplanes, numcplanes, 1);
+#endif
 }
 
 
@@ -45,18 +51,22 @@ VisitNode (struct mnode_s *node, int cplanes[4], int numcplanes)
 			struct mportal_s *portal;
 			int i;
 
+#if 0
 			R_GenSpansForSurfaces (	node->front_firstsurface,
 						node->front_numsurfs,
 						cplanes,
 						numcplanes,
 						0 /* backface check unnecessary since we're drawing front surfs */
 						);
+#endif
 
 			for (	i = 0, portal = map.portals + node->firstportal;
 				i < node->numportals;
 				i++, portal++ )
 			{
+#if 0
 				if (R_CheckPortalVisibility(portal, cplanes, numcplanes, 0))
+#endif
 				{
 					portal_visible = 1;
 					break;
@@ -140,16 +150,16 @@ VisitNodeRecursive (void *visit, int cplanes[4], int numcplanes)
 void
 R_DrawWorld (void)
 {
-	if (0)
+	if (1)
 	{
 		char spanbuf[32 * 1024];
-		char surfacebuf[32 * 1024];
+		char surfbuf[32 * 1024];
 		char edgebuf[32 * 1024];
 
-		int cplanes[4] = { 0, 1, 2, 3 };
+		R_Surf_BeginFrame (surfbuf, sizeof(surfbuf), edgebuf, sizeof(edgebuf));
+		R_Span_BeginFrame (spanbuf, sizeof(spanbuf), video.w, video.h);
 
-		R_Surf_BeginFrame (surfacebuf, sizeof(surfacebuf), edgebuf, sizeof(edgebuf));
-		R_Span_BeginFrame (spanbuf, sizeof(spanbuf));
+		int cplanes[4] = { 0, 1, 2, 3 };
 
 		if (map.num_nodes > 0)
 		{
@@ -167,7 +177,9 @@ R_DrawWorld (void)
 		else
 		{
 			/* for dev purposes just draw all polys */
+#if 0
 			R_GenSpansForSurfaces (0, map.num_surfaces, cplanes, 4, 1);
+#endif
 		}
 
 		if (0)
@@ -179,6 +191,7 @@ R_DrawWorld (void)
 		if (map.num_surfaces > 0)
 			R_SimpleDrawPoly ((double *)map.vertices, map.num_vertices, 0xffffffff);
 	}
+
 	//TODO: draw textured surface spans
 	//	texturing, lighting, z fill
 	//NOTE: we could have emitted surfaces w/o spans; skip them

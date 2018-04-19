@@ -22,19 +22,20 @@ struct drawspan_s *r_spans = NULL;
 static struct drawspan_s *r_spans_end = NULL;
 
 static struct gspan_s *gspans = NULL;
-static unsigned short poolidx;
-static int display_w, display_h;
+static unsigned short poolidx = NULLIDX;
+static int display_w = 0;
+static int display_h = 0;
 
 
-void
-R_Span_Init (void)
+static void
+Init (int w, int h)
 {
 	int i, count;
 
 	R_Span_Cleanup ();
 
-	display_w = video.w;
-	display_h = video.h;
+	display_w = w;
+	display_h = h;
 
 	/* estimate a probable max number of spans per row */
 	//TODO: should be tested & tweaked
@@ -221,10 +222,13 @@ R_Span_ClipAndEmit (int y, int x1, int x2)
 
 
 void
-R_Span_BeginFrame (void *buf, int buflen)
+R_Span_BeginFrame (void *buf, int buflen, int w, int h)
 {
 	unsigned int cnt;
 	int i;
+
+	if (display_w != w || display_h != h)
+		Init (w, h);
 
 	/* set up draw spans */
 	r_spans = AlignAllocation (buf, buflen, sizeof(*r_spans), &cnt);

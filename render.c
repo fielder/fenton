@@ -13,6 +13,7 @@ struct camera_s camera;
 
 unsigned int r_framenum;
 
+int r_gspan_debug = 0;
 
 void
 R_Init (void)
@@ -43,8 +44,6 @@ R_CameraSizeChanged (int w, int h)
 
 	camera.dist = (w / 2.0) / tan(camera.fov_x / 2.0);
 	camera.fov_y = 2.0 * atan((h / 2.0) / camera.dist);
-
-	R_Span_Init ();
 }
 
 
@@ -198,7 +197,7 @@ R_Refresh (void)
 //	R_DrawLine(50,30,277,197,0x000000ff); // B - bits 0-7
 //	R_DrawLine(50,38,277,205,0x0000ff00); // G - bits 8-15
 //	R_DrawLine(50,46,277,213,0x00ff0000); // R - bits 16-23
-//
+
 	if (0)
 	{
 		int i;
@@ -214,7 +213,7 @@ R_Refresh (void)
 		}
 	}
 
-	if (0)
+	if (r_gspan_debug)
 		R_Span_DrawGSpans ();
 
 	r_framenum++;

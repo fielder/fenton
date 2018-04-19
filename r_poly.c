@@ -11,6 +11,7 @@
 
 #define MAX_DRAWEDGES 65535
 
+#if 0
 struct cplane_s
 {
 	double normal[3];
@@ -472,11 +473,13 @@ R_CheckPortalVisibility (struct mportal_s *portal, int cplanes[4], int numcplane
 	//TODO: ...
 	return 0;
 }
+#endif
 
 
 void
 R_Surf_BeginFrame (void *surfbuf, int surfbufsize, void *edgebuf, int edgebufsize)
 {
+#if 0
 	unsigned int cnt;
 
 	surfs_p = surfs = AlignAllocation (surfbuf, surfbufsize, sizeof(*surfs), &cnt);
@@ -488,9 +491,11 @@ R_Surf_BeginFrame (void *surfbuf, int surfbufsize, void *edgebuf, int edgebufsiz
 		F_Error ("too mant drawedges (%d)", cnt);
 
 	edges_p++; /* index 0 is used for NULL drawedge */
+#endif
 }
 
 
+#if 0
 static void
 DrawSpan (struct drawspan_s *s, int c)
 {
@@ -509,11 +514,13 @@ DrawSpan (struct drawspan_s *s, int c)
 			*dest++ = c;
 	}
 }
+#endif
 
 
 void
 R_Surf_DrawDebug ()
 {
+#if 0
 	struct drawsurf_s *drawsurf;
 	int num;
 
@@ -528,4 +535,5 @@ R_Surf_DrawDebug ()
 
 	if (0)
 		printf("%u: %d surfs\n", r_framenum, num);
+#endif
 }
