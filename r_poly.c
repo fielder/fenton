@@ -9,15 +9,25 @@
 #include "map.h"
 #include "render.h"
 
-#define MAX_DRAWEDGES 65535
+#define MAX_EMITEDGES 65535
 
-#if 0
-struct cplane_s
+/* as world edges are projected, they're cached for re-use
+ * idea is an edge is always shared with at least 2 surfaces
+ * emit edges run top->bottom */
+struct emitedge_s
 {
-	double normal[3];
-	double dist;
-	struct cplane_s *next;
-	int vplaneidx;
+	unsigned int medgeidx; /* medge this came from */
+	int u, du; /* 12.20 fixed-point format */
+	short top, bottom; /* screen coords */
+};
+
+/* scanedges are ephemeral, only needed when scan-converting a poly's
+ * emitedges to spans
+ * scanedges are stored in a single list, sorted by top coord */
+struct scanedge_s
+{
+	unsigned short emitedgeidx;
+	unsigned short nextscanedgeidx;
 };
 
 struct drawsurf_s
@@ -28,38 +38,27 @@ struct drawsurf_s
 
 	unsigned short numspans;
 
-	unsigned short firstdrawedge;
+	unsigned short firstdrawedgeidx;
 	unsigned short numdrawedges;
 
-#if 0
 	//TODO: texture mapping stuff
-#endif
 
 	char pad[6]; /* align on 8-byte boundary */
 };
 
-struct drawedge_s
-{
-	unsigned int medgeidx; /* medge this drawedge came from */
-
-	int u, du; /* 12.20 fixed-point format */
-
-	short top, bottom;
-
-	unsigned short next; /* in v-sorted list of drawedges for the poly */
-
-	char pad[2]; /* align to 20 bytes */
-};
+static struct scanedge_s *scanedge_pool, *scanedge_pool_end;
+static int scanedge_idx;
 
 static struct drawsurf_s *surfs = NULL;
 static struct drawsurf_s *surfs_p = NULL;
 static struct drawsurf_s *surfs_end = NULL;
 
-static struct drawedge_s *edges = NULL;
-static struct drawedge_s *edges_p = NULL;
-static struct drawedge_s *edges_end = NULL;
+static struct emitedge_s *edges = NULL;
+static struct emitedge_s *edges_p = NULL;
+static struct emitedge_s *edges_end = NULL;
 
 
+#if 0
 static void
 DrawSurfEdge (int e, int c)
 {
@@ -116,7 +115,7 @@ ClampU (int u)
 
 
 static void
-ScanEdges (struct drawedge_s *drawedges, int count)
+ScanEdges (struct emitedge_s *drawedges, int count)
 {
 	if (count < 2)
 	{
@@ -165,14 +164,13 @@ ScanEdges (struct drawedge_s *drawedges, int count)
 			R_Span_ClipAndEmit (y, *l >> 20, *r >> 20);
 	}
 
-#if 0
 	int u_l, u_r;
 	int du_l, du_r;
 	int v;
 	int bottom;
 
 	{
-		struct drawedge_s *a, *b;
+		struct emitedge_s *a, *b;
 		a = drawedges;
 		drawedges = &edges[drawedges->next];
 		b = drawedges;
@@ -199,8 +197,8 @@ ScanEdges (struct drawedge_s *drawedges, int count)
 
 	//...
 	//...
-#endif
 }
+#endif
 
 
 static void
@@ -286,8 +284,9 @@ EmitEdge (const float v1[3], const float v2[3], int cacheable)
 }
 
 
+#if 0
 static void
-EmitCached (const struct drawedge_s *e)
+EmitCached (const struct emitedge_s *e)
 {
 	edges_p->medgeidx = e->medgeidx;
 	edges_p->u = e->u;
@@ -348,7 +347,7 @@ GenerateDrawEdges (unsigned int edgeloop_start, int numedges, const struct cplan
 		return 3;
 	}
 
-	struct drawedge_s *firstemit = edges_p;
+	struct emitedge_s *firstemit = edges_p;
 	int *eloop_ptr = &map.edgeloops[edgeloop_start];
 
 	while (numedges-- > 0)
@@ -416,17 +415,19 @@ GenerateDrawEdges (unsigned int edgeloop_start, int numedges, const struct cplan
 
 	return edges_p - firstemit;
 }
+#endif
 
 
+#if 0
 static void
-GenerateDrawSurf (struct msurface_s *msurf, const struct cplane_s *clips)
+GenerateDrawSurf (struct msurface_s *msurf, int planemask)
 {
 	int edgecnt;
 
 	if (surfs_p == surfs_end)
 		return;
 
-	surfs_p->firstdrawedge = edges_p - edges;
+	surfs_p->firstdrawedgeidx = edges_p - edges;
 
 	if ((edgecnt = GenerateDrawEdges(msurf->edgeloop_start, msurf->numedges, clips)) == 0)
 		return;
@@ -437,49 +438,44 @@ GenerateDrawSurf (struct msurface_s *msurf, const struct cplane_s *clips)
 
 	surfs_p++;
 }
+#endif
+
+
+static void
+ProcessSurface (struct msurface_s *msurf, int planemask)
+{
+	//TODO: ...
+}
 
 
 void
-R_GenSpansForSurfaces (unsigned int first, int count, int cplanes[4], int numcplanes, int backface_check)
+R_GenSpansForSurfaces (unsigned int first, int count, int planemask, int backface_check)
 {
-	struct cplane_s *clips = GetCPlanes (cplanes, numcplanes);
-	struct drawsurf_s *firstemit = surfs_p;
-
 	while (count-- > 0)
 	{
 		struct msurface_s *msurf = &map.surfaces[first++];
 
 		if (!backface_check || Map_DistFromSurface(msurf, camera.pos) >= SURF_BACKFACE_EPSILON)
-			GenerateDrawSurf (msurf, clips);
-	}
-
-	/* create spans */
-	while (firstemit != surfs_p)
-	{
-		firstemit->spans = r_spans;
-		ScanEdges (&edges[firstemit->firstdrawedge], firstemit->numdrawedges);
-		firstemit->numspans = r_spans - firstemit->spans;
-		firstemit++;
+			ProcessSurface (msurf, planemask);
 	}
 }
 
 
 int
-R_CheckPortalVisibility (struct mportal_s *portal, int cplanes[4], int numcplanes, int reversewinding)
+R_CheckPortalVisibility (struct mportal_s *portal, int planemask, int reversewinding)
 {
-	// run through the edges, emitting drawedges
-	// scan over the emitted drawedges; if a span is visible return true
-	// the only side-effect of this function will be emitted drawedges
+	// clip and emit edges just as usual
+	// scan over the emitted edges; if a span is visible return true
+	// all spans don't need to be checked; only 1 visible span is sufficient
+	// the only side-effect of this function will be emitted edges
 	//TODO: ...
 	return 0;
 }
-#endif
 
 
 void
 R_Surf_BeginFrame (void *surfbuf, int surfbufsize, void *edgebuf, int edgebufsize)
 {
-#if 0
 	unsigned int cnt;
 
 	surfs_p = surfs = AlignAllocation (surfbuf, surfbufsize, sizeof(*surfs), &cnt);
@@ -487,11 +483,10 @@ R_Surf_BeginFrame (void *surfbuf, int surfbufsize, void *edgebuf, int edgebufsiz
 
 	edges_p = edges = AlignAllocation (edgebuf, edgebufsize, sizeof(*edges), &cnt);
 	edges_end = edges + cnt;
-	if (cnt > MAX_DRAWEDGES)
-		F_Error ("too mant drawedges (%d)", cnt);
+	if (cnt > MAX_EMITEDGES)
+		F_Error ("too many drawedges (%d)", cnt);
 
 	edges_p++; /* index 0 is used for NULL drawedge */
-#endif
 }
 
 
@@ -537,3 +532,47 @@ R_Surf_DrawDebug ()
 		printf("%u: %d surfs\n", r_framenum, num);
 #endif
 }
+
+
+
+
+
+#if 0
+
+	OLD JUNK
+
+
+struct cplane_s
+{
+	double normal[3];
+	double dist;
+	struct cplane_s *next;
+	int vplaneidx;
+};
+
+
+/* for (i = VPLANE_ITER_MIN; i <= VPLANE_ITER_MAX; i <<= 1) { } */
+#define VPLANE_ITER_MIN VPLANE_LEFT_MASK
+#define VPLANE_ITER_MAX VPLANE_BOTTOM_MASK
+
+
+	struct drawsurf_s *firstemitsurf = surfs_p;
+
+	while (count-- > 0)
+	{
+		struct msurface_s *msurf = &map.surfaces[first++];
+
+		if (!backface_check || Map_DistFromSurface(msurf, camera.pos) >= SURF_BACKFACE_EPSILON)
+			GenerateDrawSurf (msurf, planemask);
+	}
+
+	/* create spans */
+	while (firstemitsurf != surfs_p)
+	{
+		firstemitsurf->spans = r_spans;
+		ScanEdges (&edges[firstemitsurf->firstdrawedgeidx], firstemitsurf->numdrawedges);
+		firstemitsurf->numspans = r_spans - firstemitsurf->spans;
+		firstemitsurf++;
+	}
+
+#endif

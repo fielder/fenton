@@ -3,7 +3,6 @@
 #include <stdlib.h>
 
 #include "bdat.h"
-#include "appio.h"
 #include "render.h"
 
 #define PTR2IDX(PTR) ((int)((PTR) - gspans))
@@ -33,6 +32,9 @@ Init (int w, int h)
 	int i, count;
 
 	R_Span_Cleanup ();
+
+	if (w <= 0 || h <= 0)
+		return;
 
 	display_w = w;
 	display_h = h;
@@ -73,8 +75,10 @@ void
 R_Span_Cleanup (void)
 {
 	if (gspans != NULL)
+	{
 		free (gspans);
-	gspans = NULL;
+		gspans = NULL;
+	}
 	display_w = 0;
 	display_h = 0;
 	poolidx = NULLIDX;

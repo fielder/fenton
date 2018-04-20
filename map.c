@@ -308,7 +308,6 @@ struct dleaf_s
 static int
 LoadLeafs (void)
 {
-#if 0
 	int sz, cnt;
 	struct dleaf_s *dleafs, *in;
 	struct mleaf_s *out;
@@ -337,7 +336,6 @@ LoadLeafs (void)
 	}
 
 	free (dleafs);
-#endif
 
 	return 1;
 }

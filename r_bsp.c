@@ -5,35 +5,27 @@
 #include "appio.h"
 #include "render.h"
 
-
 extern void
-R_GenSpansForSurfaces (unsigned int first, int count, int cplanes[4], int numcplanes, int backface_check);
+R_GenSpansForSurfaces (unsigned int first, int count, int planemask, int backface_check);
 
 extern int
-R_CheckPortalVisibility (struct mportal_s *portal, int cplanes[4], int numcplanes, int reversewinding);
-
-extern void
-R_Surf_BeginFrame (void *surfbuf, int surfbufsize, void *edgebuf, int edgebufsize);
-
-extern void
-R_Surf_DrawDebug ();
+R_CheckPortalVisibility (struct mportal_s *portal, int planemask, int reversewinding);
 
 static void
-VisitNodeRecursive (void *visit, int cplanes[4], int numcplanes);
+VisitNodeRecursive (void *visit, int planemask);
 
 
 static void
-VisitLeaf (struct mleaf_s *leaf, int cplanes[4], int numcplanes)
+VisitLeaf (struct mleaf_s *leaf, int planemask)
 {
-#if 0
-	R_GenSpansForSurfaces (leaf->firstsurface, leaf->numsurfaces, cplanes, numcplanes, 1);
-#endif
+	R_GenSpansForSurfaces (leaf->firstsurface, leaf->numsurfaces, planemask, 1);
 }
 
 
 static void
-VisitNode (struct mnode_s *node, int cplanes[4], int numcplanes)
+VisitNode (struct mnode_s *node, int planemask)
 {
+#if 0
 	int portal_visible = 0;
 	double dist;
 	int side;
@@ -94,58 +86,68 @@ VisitNode (struct mnode_s *node, int cplanes[4], int numcplanes)
 	/* go down back side only if a portal is visible */
 	if (portal_visible)
 		VisitNodeRecursive (node->children[!side], cplanes, numcplanes);
+#endif
 }
 
 
 static void
-VisitNodeRecursive (void *visit, int cplanes[4], int numcplanes)
+VisitNodeRecursive (void *visit, int planemask)
 {
-	int planes[4];
-	int planecnt = 0;
+	int newplanemask = 0x0;
 	unsigned short flags = NODEFL_FLAGS(visit);
 
-	if (numcplanes)
+	/* check node/leaf bbox against active viewplanes and
+	 * update active viewplane set */
+	if (planemask != 0x0)
 	{
-		struct viewplane_s *vp;
-		double bboxcorner[3];
 		int vplaneidx;
-		while (numcplanes-- > 0)
+		for (vplaneidx = 0; vplaneidx < 4; vplaneidx++)
 		{
-			vplaneidx = cplanes[numcplanes];
-			vp = &camera.vplanes[vplaneidx];
+			int bit = 1 << vplaneidx;
+			if (planemask & bit)
+			{
+				struct viewplane_s *vp = &camera.vplanes[vplaneidx];
+				double bboxcorner[3];
 
-			bboxcorner[0] = ((int *)visit)[vp->reject[0]];
-			bboxcorner[1] = ((int *)visit)[vp->reject[1]];
-			bboxcorner[2] = ((int *)visit)[vp->reject[2]];
-			if (Vec_Dot(bboxcorner, vp->normal) - vp->dist <= 0.0)
-			{
-				/* bbox is entirely behind a viewplane */
-				return;
-			}
+				bboxcorner[0] = ((int *)visit)[vp->reject[0]];
+				bboxcorner[1] = ((int *)visit)[vp->reject[1]];
+				bboxcorner[2] = ((int *)visit)[vp->reject[2]];
+				if (Vec_Dot(bboxcorner, vp->normal) - vp->dist <= 0.0)
+				{
+					/* bbox is entirely behind a viewplane */
+					return;
+				}
 
-			bboxcorner[0] = ((int *)visit)[vp->accept[0]];
-			bboxcorner[1] = ((int *)visit)[vp->accept[1]];
-			bboxcorner[2] = ((int *)visit)[vp->accept[2]];
-			if (Vec_Dot(bboxcorner, vp->normal) - vp->dist >= 0.0)
-			{
-				/* bbox is entirely infront of a viewplane;
-				 * won't get added to the active plane set */
-			}
-			else
-			{
-				/* bbox intersects the plane, keep it
-				 * in the clip plane list */
-				planes[planecnt++] = vplaneidx;
+				bboxcorner[0] = ((int *)visit)[vp->accept[0]];
+				bboxcorner[1] = ((int *)visit)[vp->accept[1]];
+				bboxcorner[2] = ((int *)visit)[vp->accept[2]];
+				if (Vec_Dot(bboxcorner, vp->normal) - vp->dist >= 0.0)
+				{
+					/* bbox is entirely infront of a viewplane;
+					 * won't get added to the active plane set */
+				}
+				else
+				{
+					/* bbox intersects the plane, keep it
+					 * in the clip plane list */
+					newplanemask |= bit;
+				}
 			}
 		}
 	}
 
 	if ((flags & NODEFL_LEAF) == NODEFL_LEAF)
-		VisitLeaf (visit, planes, planecnt);
+		VisitLeaf (visit, newplanemask);
 	else
-		VisitNode (visit, planes, planecnt);
+		VisitNode (visit, newplanemask);
 }
 
+
+extern void
+R_Surf_BeginFrame (void *surfbuf, int surfbufsize, void *edgebuf, int edgebufsize);
+
+extern void
+R_Surf_DrawDebug ();
 
 void
 R_DrawWorld (void)
@@ -159,11 +161,9 @@ R_DrawWorld (void)
 		R_Surf_BeginFrame (surfbuf, sizeof(surfbuf), edgebuf, sizeof(edgebuf));
 		R_Span_BeginFrame (spanbuf, sizeof(spanbuf), video.w, video.h);
 
-		int cplanes[4] = { 0, 1, 2, 3 };
-
 		if (map.num_nodes > 0)
 		{
-			VisitNodeRecursive (map.nodes, cplanes, 4);
+			VisitNodeRecursive (map.nodes, VPLANE_ALL_MASK);
 		}
 		else if (map.num_leafs > 0)
 		{
@@ -172,13 +172,13 @@ R_DrawWorld (void)
 			 * maps */
 			int i;
 			for (i = 0; i < map.num_leafs; i++)
-				VisitNodeRecursive (&map.leafs[i], cplanes, 4);
+				VisitNodeRecursive (&map.leafs[i], VPLANE_ALL_MASK);
 		}
 		else
 		{
 			/* for dev purposes just draw all polys */
 #if 0
-			R_GenSpansForSurfaces (0, map.num_surfaces, cplanes, 4, 1);
+			R_GenSpansForSurfaces (0, map.num_surfaces, VPLANE_ALL_MASK, 1);
 #endif
 		}
 
@@ -186,11 +186,13 @@ R_DrawWorld (void)
 			R_Surf_DrawDebug ();
 	}
 
+#if 0
 	if (1)
 	{
 		if (map.num_surfaces > 0)
 			R_SimpleDrawPoly ((double *)map.vertices, map.num_vertices, 0xffffffff);
 	}
+#endif
 
 	//TODO: draw textured surface spans
 	//	texturing, lighting, z fill

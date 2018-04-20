@@ -179,8 +179,7 @@ R_Refresh (void)
 
 	CalcViewPlanes ();
 
-	if (1)
-		R_DrawWorld ();
+	R_DrawWorld ();
 
 	if (1)
 	{
@@ -198,7 +197,7 @@ R_Refresh (void)
 //	R_DrawLine(50,38,277,205,0x0000ff00); // G - bits 8-15
 //	R_DrawLine(50,46,277,213,0x00ff0000); // R - bits 16-23
 
-	if (0)
+#if 0
 	{
 		int i;
 		for (i = 0; i < map.num_vertices; i++)
@@ -212,6 +211,7 @@ R_Refresh (void)
 					0xffffffff );
 		}
 	}
+#endif
 
 	if (r_gspan_debug)
 		R_Span_DrawGSpans ();
