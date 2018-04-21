@@ -11,6 +11,8 @@
 
 #define MAX_EMITEDGES 65535
 
+#define MAX_POLY_DRAWEDGES 64
+
 /*
  * Since extra edges aren't cached and we scan a poly right after
  * edge processing, emit edges really are useful only for cached
@@ -26,6 +28,7 @@ struct drawedge_s
 	int u, du; /* 12.20 fixed-point format */
 	short top, bottom; /* screen coords */
 };
+#define U_FRACBITS 20
 
 struct drawsurf_s
 {
@@ -47,11 +50,8 @@ struct scanedge_s
 {
 	struct drawedge_s *drawedge;
 	struct scanedge_s *next;
+	int top;
 };
-
-//static struct scanedge_s *scanedge_pool;
-//static struct scanedge_s *scanedge_pool_end;
-//static int scanedge_idx;
 
 static struct drawsurf_s *surfs = NULL;
 static struct drawsurf_s *surfs_p = NULL;
@@ -66,16 +66,68 @@ struct drawedge_s *extraedges = NULL;
 struct drawedge_s *extraedges_p = NULL;
 struct drawedge_s *extraedges_end = NULL;
 
+static struct scanedge_s scanedge_head;
+static struct scanedge_s *scanedge_p = NULL;
+static struct scanedge_s *scanedge_end = NULL;
 
-void
-R_Surf_DrawDebug (void)
+
+static void
+ProcessScanEdges (void)
 {
+	int l_u, l_du, l_bottom;
+	int r_u, r_du, r_bottom;
+	int v = scanedge_head.next->top;
+	int nextv = v;
+	while (1)
+	{
+		while (v < nextv)
+		{
+			R_Span_ClipAndEmit (v, l_u >> U_FRACBITS, r_u >> U_FRACBITS);
+			l_u += l_du;
+			r_u += r_du;
+			v++;
+		}
+		// run through scanedge list, emitting spans
+		if (no more scanedges waiting and )
+			break;
+	}
+}
+
+
+static void
+EmitScanEdge (struct drawedge_s *drawedge)
+{
+	if (scanedge_p != scanedge_end)
+	{
+		struct scanedge_s *p = &scanedge_head;
+		struct scanedge_s *n = p->next;;
+		while (n != NULL && n->top < drawedge->top)
+		{
+			n = n->next;
+			p = p->next;
+		}
+		scanedge_p->next = p->next;
+		p->next = scanedge_p;
+		scanedge_p->top = drawedge->top;
+		scanedge_p->drawedge = drawedge;
+		scanedge_p++;
+	}
 }
 
 
 static void
 ProcessSurf (struct msurface_s *msurf, int planemask)
 {
+	struct scanedge_s scanpool[MAX_POLY_DRAWEDGES];
+
+	scanedge_p = scanpool;
+	scanedge_end = scanpool + (sizeof(scanpool) / sizeof(scanpool[0]));
+
+	scanedge_head.drawedge = NULL;
+	scanedge_head.next = NULL;
+	scanedge_head.top = -9999;
+
+	// set up extra edges
 	//TODO: ...
 }
 
@@ -106,6 +158,12 @@ R_CheckPortalVisibility (struct mportal_s *portal, int planemask, int reversewin
 
 
 void
+R_Surf_DrawDebug (void)
+{
+}
+
+
+void
 R_Surf_BeginFrame (void *surfbuf, int surfbufsize, void *edgebuf, int edgebufsize)
 {
 	unsigned int cnt;
@@ -114,9 +172,8 @@ R_Surf_BeginFrame (void *surfbuf, int surfbufsize, void *edgebuf, int edgebufsiz
 	surfs_end = surfs + cnt;
 
 	drawedges_p = drawedges = AlignAllocation (edgebuf, edgebufsize, sizeof(*drawedges), &cnt);
+	cnt = (cnt > MAX_EMITEDGES) ? (MAX_EMITEDGES) : (cnt);
 	drawedges_end = drawedges + cnt;
-	if (cnt > MAX_EMITEDGES)
-		F_Error ("too many emit edges (%d)", cnt);
 
 	drawedges_p++; /* index 0 is used for NULL drawedge */
 }
