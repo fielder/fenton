@@ -73,6 +73,9 @@ R_CalcViewXForm (void);
 extern void
 R_Refresh (void);
 
+extern void
+R_Die (const char *msg);
+
 /* span stuff */
 
 /* emitted polygon span */

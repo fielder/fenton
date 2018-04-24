@@ -1,6 +1,7 @@
 #include <math.h>
 
 //#include "rdata.h"
+#include "fenton.h"
 #include "map.h"
 #include "appio.h"
 #include "vec.h"
@@ -217,4 +218,19 @@ R_Refresh (void)
 		R_Span_DrawGSpans ();
 
 	r_framenum++;
+}
+
+
+void
+R_Die (const char *msg)
+{
+	F_Error ("%s\n%f %f %f %f %f %f",
+		msg,
+		camera.pos[0],
+		camera.pos[1],
+		camera.pos[2],
+		camera.angles[0],
+		camera.angles[1],
+		camera.angles[2]
+			);
 }
