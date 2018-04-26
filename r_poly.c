@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <math.h>
 
 #include "appio.h"
 #include "vec.h"
@@ -90,6 +91,17 @@ DebugDrawEdge (struct drawedge_s *de)
 
 
 static void
+DebugDrawMapEdge (int e)
+{
+	if (e < 0)
+		e = -e - 1;
+	R_3DLine (	map.vertices[map.edges[e].v[0]].xyz,
+			map.vertices[map.edges[e].v[1]].xyz,
+			-1);
+}
+
+
+static void
 ProcessScanEdges (void)
 {
 #if 1
@@ -97,6 +109,9 @@ ProcessScanEdges (void)
 	for (se = scanedge_head.next; se != NULL; se = se->next)
 		DebugDrawEdge (se->drawedge);
 #else
+/* pre-adjust screen x coords so we end up with the correct pixel after shifting down */
+// de->u += ((1 << 20) / 2) - 1;
+
 	//TODO: do me
 	int l_u, l_du, l_bottom;
 	int r_u, r_du, r_bottom;
@@ -150,97 +165,83 @@ enum
 
 static double *clip_v1;
 static double *clip_v2;
+static double _clip_1[3];
+static double _clip_2[3];
 static int lr_status;
 static int t_status;
 static int b_status;
 static double *enter_left, *exit_left;
 static double *enter_right, *exit_right;
-static double _ent_l[3], _ext_l[3];
-static double _ent_r[3], _ext_r[3];
+static double _enter_l[3], _exit_l[3];
+static double _enter_r[3], _exit_r[3];
 
 
 static int
 FillDrawEdge (struct drawedge_s *de)
 {
-	/*
-	de->u = ;
-	de->du = ;
-	de->top = ;
-	de->bottom = ;
-	*/
-#if 0
-	float u1_f, v1_f;
-	int v1_i;
+	double _u1, _v1;
+	double _u2, _v2;
 
-	float u2_f, v2_f;
-	int v2_i;
+	double u1_f, v1_f;
+	double u2_f, v2_f;
 
-	float du;
+	double local[3], out[3];
+	double scale;
 
-	float local[3], out[3];
-	float scale;
+	Vec_Subtract (clip_v1, camera.pos, local);
+	Vec_Transform (camera.xform, local, out);
+	scale = camera.dist / out[2];
+	_u1 = camera.center_x - scale * out[0];
+	_v1 = camera.center_y - scale * out[1];
+
+	Vec_Subtract (clip_v2, camera.pos, local);
+	Vec_Transform (camera.xform, local, out);
+	scale = camera.dist / out[2];
+	_u2 = camera.center_x - scale * out[0];
+	_v2 = camera.center_y - scale * out[1];
+
+	/* sort so 1 is top, 2 is bottom */
+	if (_v1 <= _v2)
+	{
+		u1_f = _u1;
+		v1_f = _v1;
+		u2_f = _u2;
+		v2_f = _v2;
+	}
+	else
+	{
+		u1_f = _u2;
+		v1_f = _v2;
+		u2_f = _u1;
+		v2_f = _v1;
+	}
+
 
 	/* the pixel containment rule says an edge point exactly on the
 	 * center of a pixel vertically will be considered to cover that
 	 * pixel */
-
-	Vec_Subtract (v1, camera.pos, local);
-	Vec_Transform (camera.xform, local, out);
-	scale = camera.dist / out[2];
-	u1_f = camera.center_x - scale * out[0];
-	v1_f = camera.center_y - scale * out[1];
-
-	Vec_Subtract (v2, camera.pos, local);
-	Vec_Transform (camera.xform, local, out);
-	scale = camera.dist / out[2];
-	u2_f = camera.center_x - scale * out[0];
-	v2_f = camera.center_y - scale * out[1];
-
-	v1_i = ceil (v1_f - 0.5);
-	v2_i = ceil (v2_f - 0.5);
+	int v1_i = ceil (v1_f - 0.5);
+	int v2_i = floor (v2_f - 0.5);
 
 	if (v1_i == v2_i)
 	{
 		/* doesn't cross a pixel center vertically */
 		return 0;
 	}
-	else if (v1_i < v2_i)
+
+	if (v2_i <= 0 || v1_i >= video.h)
 	{
-		/* left-side edge, running down the screen */
-
-		if (v2_i <= 0 || v1_i >= video.h)
-		{
-			/* math imprecision sometimes results in nearly-horizontal
-			 * emitted edges just above or just below the screen */
-			return 0;
-		}
-
-		du = (u2_f - u1_f) / (v2_f - v1_f);
-		e->u = (u1_f + du * (v1_i + 0.5 - v1_f)) * 0x100000;
-		e->u += ((1 << 20) / 2) - 1; /* pre-adjust screen x coords so we end up with the correct pixel after shifting down */
-		e->du = du * 0x100000;
-		e->top = v1_i;
-		e->bottom = v2_i - 1; /* this edge's last row is 1 pixel above the top pixel of the next edge */
+		/* math imprecision sometimes results in nearly-horizontal
+		 * emitted edges just above or just below the screen */
+		return 0;
 	}
-	else
-	{
-		/* right-side edge, running up the screen */
 
-		if (v1_i <= 0 || v2_i >= video.h)
-		{
-			/* math imprecision sometimes results in nearly-horizontal
-			 * emitted edges just above or just below the screen */
-			return 0;
-		}
+	double du = (u2_f - u1_f) / (v2_f - v1_f);
+	de->u = (u1_f + du * (v1_i + 0.5 - v1_f)) * (1 << U_FRACBITS);
+	de->du = du * (1 << U_FRACBITS);
+	de->top = v1_i;
+	de->bottom = v2_i;
 
-		du = (u1_f - u2_f) / (v1_f - v2_f);
-		e->u = (u2_f + du * (v2_i + 0.5 - v2_f)) * 0x100000;
-		e->u -= ((1 << 20) / 2); /* pre-adjust screen x coords so we end up with the correct pixel after shifting down */
-		e->du = du * 0x100000;
-		e->top = v2_i;
-		e->bottom = v1_i - 1; /* this edge's last row is 1 pixel above the top pixel of the next edge */
-	}
-#endif
 	return 1;
 }
 
@@ -248,10 +249,11 @@ FillDrawEdge (struct drawedge_s *de)
 static struct drawedge_s *
 NewExtraEdge (void)
 {
-	struct drawedge_s *de;
-	//TODO: ...
-	de = NULL;
-	return de;
+	if (extraedges_p == extraedges_end)
+		return NULL;
+	if (!FillDrawEdge(extraedges_p))
+		return NULL;
+	return extraedges_p++;
 }
 
 
@@ -262,8 +264,7 @@ NewDrawEdge (void)
 		return NULL;
 	if (!FillDrawEdge(drawedges_p))
 		return NULL;
-	struct drawedge_s *ret = drawedges_p++;
-	return ret;
+	return drawedges_p++;
 }
 
 
@@ -279,9 +280,10 @@ ClipWithTB (const struct viewplane_s *p)
 		{
 			/* edge runs from front -> back */
 			double frac = d1 / (d1 - d2);
-			clip_v2[0] = clip_v1[0] + frac * (clip_v2[0] - clip_v1[0]);
-			clip_v2[1] = clip_v1[1] + frac * (clip_v2[1] - clip_v1[1]);
-			clip_v2[2] = clip_v1[2] + frac * (clip_v2[2] - clip_v1[2]);
+			_clip_2[0] = clip_v1[0] + frac * (clip_v2[0] - clip_v1[0]);
+			_clip_2[1] = clip_v1[1] + frac * (clip_v2[1] - clip_v1[1]);
+			_clip_2[2] = clip_v1[2] + frac * (clip_v2[2] - clip_v1[2]);
+			clip_v2 = _clip_2;
 			return CLIP_CHOPPED;
 		}
 		else
@@ -302,9 +304,10 @@ ClipWithTB (const struct viewplane_s *p)
 		{
 			/* edge runs from back -> front */
 			double frac = d1 / (d1 - d2);
-			clip_v1[0] = clip_v1[0] + frac * (clip_v2[0] - clip_v1[0]);
-			clip_v1[1] = clip_v1[1] + frac * (clip_v2[1] - clip_v1[1]);
-			clip_v1[2] = clip_v1[2] + frac * (clip_v2[2] - clip_v1[2]);
+			_clip_1[0] = clip_v1[0] + frac * (clip_v2[0] - clip_v1[0]);
+			_clip_1[1] = clip_v1[1] + frac * (clip_v2[1] - clip_v1[1]);
+			_clip_1[2] = clip_v1[2] + frac * (clip_v2[2] - clip_v1[2]);
+			clip_v1 = _clip_1;
 			return CLIP_CHOPPED;
 		}
 	}
@@ -316,19 +319,70 @@ ClipWithTB (const struct viewplane_s *p)
 static int
 ClipWithLR (int planemask)
 {
-	// note if both LR are active we must check FULL edge against
-	// both planes; needed to gen enter/exit points
-	// 
-	// if only 1 plane active, return CLIP_CHOPPED, CLIP_SINGLE, or CLIP_FRONT
+	if (planemask & VPLANE_LEFT_MASK)
+	{
+		if (planemask & VPLANE_RIGHT_MASK)
+		{
+			// note if both LR are active we must check FULL edge against
+			// both planes; needed to gen enter/exit points
+			//TODO: ...
+		}
+		else
+		{
+			/* only 1 vert plane active
+			 * return CLIP_CHOPPED, CLIP_SINGLE, or CLIP_FRONT */
+			//TODO: ...
+		}
+	}
 
-	int l_status = CLIP_FRONT;
-	double clipped_l[3];
+	if (planemask & VPLANE_RIGHT_MASK)
+	{
+		/* only 1 vert plane active
+		 * return CLIP_CHOPPED, CLIP_SINGLE, or CLIP_FRONT */
+		struct viewplane_s *p = &camera.vplanes[VPLANE_RIGHT];
+		double d1 = Vec_Dot (p->normal, clip_v1) - p->dist;
+		double d2 = Vec_Dot (p->normal, clip_v2) - p->dist;
+		if (d1 >= 0.0)
+		{
+			if (d2 < 0.0)
+			{
+				/* edge runs from front -> back */
+				double frac = d1 / (d1 - d2);
+				_exit_r[0] = clip_v1[0] + frac * (clip_v2[0] - clip_v1[0]);
+				_exit_r[1] = clip_v1[1] + frac * (clip_v2[1] - clip_v1[1]);
+				_exit_r[2] = clip_v1[2] + frac * (clip_v2[2] - clip_v1[2]);
+				clip_v2 = exit_right = _exit_r;
+				return CLIP_CHOPPED;
+			}
+			else
+			{
+				/* both vertices on the front side */
+				return CLIP_FRONT;
+			}
+		}
+		else
+		{
+			if (d2 < 0.0)
+			{
+				/* both vertices behind a plane; the edge is
+				 * fully clipped away */
+				return CLIP_SINGLE;
+			}
+			else
+			{
+				/* edge runs from back -> front */
+				double frac = d1 / (d1 - d2);
+				_enter_l[0] = clip_v1[0] + frac * (clip_v2[0] - clip_v1[0]);
+				_enter_l[1] = clip_v1[1] + frac * (clip_v2[1] - clip_v1[1]);
+				_enter_l[2] = clip_v1[2] + frac * (clip_v2[2] - clip_v1[2]);
+				clip_v1 = enter_left = _enter_l;
+				return CLIP_CHOPPED;
+			}
+		}
+		/* shouldn't be reached */
+		return CLIP_FRONT;
+	}
 
-	// if left active
-	//   find left intersect point
-	// if not right active:
-	//   set clip point if chopped by left
-	//   return left clip status
 	return CLIP_FRONT;
 }
 
@@ -360,8 +414,50 @@ TryEdgeCache (int medgeidx)
 
 
 static void
+ProcessEnterExitEdge (double enter[3], double exit[3], int planemask)
+{
+	clip_v1 = enter;
+	clip_v2 = exit;
+
+	if (planemask & VPLANE_TOP_MASK)
+	{
+		if (ClipWithTB(&camera.vplanes[VPLANE_TOP]) == CLIP_SINGLE)
+		{
+			/* fully behind top */
+			return;
+		}
+	}
+
+	/* either chopped by or fully in front of top */
+
+	if (planemask & VPLANE_BOTTOM_MASK)
+	{
+		if (ClipWithTB(&camera.vplanes[VPLANE_BOTTOM]) == CLIP_SINGLE)
+		{
+			/* behind bottom */
+			return;
+		}
+	}
+
+	/* chopped or not, it's visible */
+
+	struct drawedge_s *de = NewExtraEdge ();
+	if (de != NULL)
+		EmitScanEdge (de);
+}
+
+
+static void
 GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 {
+	if (0)
+	{
+		int *eloop_ptr = &map.edgeloops[edgeloop_start];
+		while (numedges-- > 0)
+			DebugDrawMapEdge (*eloop_ptr++);
+		return;
+	}
+
 	struct scanedge_s scanpool[MAX_POLY_DRAWEDGES];
 
 	scanedge_p = scanpool;
@@ -370,11 +466,14 @@ GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 	scanedge_head.next = NULL;
 	scanedge_head.top = -9999;
 
-	// set up extra edges
-	//TODO: ...
+	struct drawedge_s _ex[MAX_POLY_DRAWEDGES];
+	extraedges = extraedges_p = _ex;
+	extraedges_end = _ex + (sizeof(_ex) / sizeof(_ex[0]));
 
-	enter_left = exit_left = NULL;
-	enter_right = exit_right = NULL;
+	enter_left = NULL;
+	exit_left = NULL;
+	enter_right = NULL;
+	exit_right = NULL;
 
 	int *eloop_ptr = &map.edgeloops[edgeloop_start];
 	while (numedges-- > 0)
@@ -456,19 +555,21 @@ GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 		}
 	}
 
-	if (enter_left != NULL)
+	if (enter_left != NULL || exit_left != NULL)
 	{
+		if (enter_left == NULL)
+			R_Die ("L exit, no enter");
 		if (exit_left == NULL)
 			R_Die ("L enter, no exit");
-		// gen extra edge
-		//...
+		ProcessEnterExitEdge (enter_left, exit_left, planemask);
 	}
-	if (enter_right != NULL)
+	if (enter_right != NULL || exit_right != NULL)
 	{
+		if (enter_right == NULL)
+			R_Die ("R exit, no enter");
 		if (exit_right == NULL)
 			R_Die ("R enter, no exit");
-		// gen extra edge
-		//...
+		ProcessEnterExitEdge (enter_right, exit_right, planemask);
 	}
 
 	if (scanedge_p - scanpool < 2)
@@ -557,7 +658,6 @@ R_Surf_BeginFrame (void *surfbuf, int surfbufsize, void *edgebuf, int edgebufsiz
 
 
 #if 0
-
 static int
 ClampU (int u)
 {
@@ -567,183 +667,7 @@ ClampU (int u)
 		return video.w * (1<<20) - 1;
 	return u;
 }
-
-
 #endif
-
-
-#if 0
-static void
-EmitEdge (const float v1[3], const float v2[3])
-{
-	float u1_f, v1_f;
-	int v1_i;
-
-	float u2_f, v2_f;
-	int v2_i;
-
-	float du;
-
-	float local[3], out[3];
-	float scale;
-
-	/* the pixel containment rule says an edge point exactly on the
-	 * center of a pixel vertically will be considered to cover that
-	 * pixel */
-
-	Vec_Subtract (v1, camera.pos, local);
-	Vec_Transform (camera.xform, local, out);
-	scale = camera.dist / out[2];
-	u1_f = camera.center_x - scale * out[0];
-	v1_f = camera.center_y - scale * out[1];
-
-	Vec_Subtract (v2, camera.pos, local);
-	Vec_Transform (camera.xform, local, out);
-	scale = camera.dist / out[2];
-	u2_f = camera.center_x - scale * out[0];
-	v2_f = camera.center_y - scale * out[1];
-
-	v1_i = ceil (v1_f - 0.5);
-	v2_i = ceil (v2_f - 0.5);
-
-	if (v1_i == v2_i)
-	{
-		/* doesn't cross a pixel center vertically */
-		return 0;
-	}
-	else if (v1_i < v2_i)
-	{
-		/* left-side edge, running down the screen */
-
-		if (v2_i <= 0 || v1_i >= video.h)
-		{
-			/* math imprecision sometimes results in nearly-horizontal
-			 * emitted edges just above or just below the screen */
-			return 0;
-		}
-
-		du = (u2_f - u1_f) / (v2_f - v1_f);
-		e->u = (u1_f + du * (v1_i + 0.5 - v1_f)) * 0x100000;
-		e->u += ((1 << 20) / 2) - 1; /* pre-adjust screen x coords so we end up with the correct pixel after shifting down */
-		e->du = du * 0x100000;
-		e->top = v1_i;
-		e->bottom = v2_i - 1; /* this edge's last row is 1 pixel above the top pixel of the next edge */
-		r_edges_left = LinkEdge (e, r_edges_left);
-	}
-	else
-	{
-		/* right-side edge, running up the screen */
-
-		if (v1_i <= 0 || v2_i >= video.h)
-		{
-			/* math imprecision sometimes results in nearly-horizontal
-			 * emitted edges just above or just below the screen */
-			return 0;
-		}
-
-		du = (u1_f - u2_f) / (v1_f - v2_f);
-		e->u = (u2_f + du * (v2_i + 0.5 - v2_f)) * 0x100000;
-		e->u -= ((1 << 20) / 2); /* pre-adjust screen x coords so we end up with the correct pixel after shifting down */
-		e->du = du * 0x100000;
-		e->top = v2_i;
-		e->bottom = v1_i - 1; /* this edge's last row is 1 pixel above the top pixel of the next edge */
-		r_edges_right = LinkEdge (e, r_edges_right);
-	}
-
-	return 1;
-}
-#endif
-
-
-#if 0
-
-static int
-GenerateDrawEdges (unsigned int edgeloop_start, int numedges, const struct cplane_s *clips)
-{
-	if (drawedges_p + numedges + 2 > drawedges_end)
-		return 0;
-
-	struct drawedge_s *firstemit = drawedges_p;
-	int *eloop_ptr = &map.edgeloops[edgeloop_start];
-
-	while (numedges-- > 0)
-	{
-		int e = *eloop_ptr++;
-
-		/* NOTE: need to know edge direction to know enter/exit
-		 * when edges hit L/R planes */
-
-		if (e < 0)
-		{
-			e = -e - 1;
-			struct medge_s *medge = &map.edges[e];
-
-			//TODO: pretty much copy from the else
-			// this needed only w/ maps w/ polys that
-			// share edges
-			//...
-		}
-		else
-		{
-			struct medge_s *medge = &map.edges[e];
-			unsigned int cacheidx = medge->cachenum & ~0x80000000;
-
-			if (medge->cachenum & 0x80000000)
-			{
-				if (cacheidx == r_framenum)
-				{
-					/* already visited this edge this
-					 * frame; it's fully off the screen */
-					continue;
-				}
-			}
-			else if (	cacheidx > 0 && // note drawedge index 0 is invalid (used as NULL drawedge)
-					cacheidx < (drawedges_p - drawedges) &&
-					drawedges[cacheidx].medgeidx == e )
-			{
-				EmitCached (&drawedges[cacheidx]);
-				continue;
-			}
-
-			clip_v1 = map.vertices[medge->v[0]].xyz;
-			clip_v2 = map.vertices[medge->v[1]].xyz;
-
-			enter_left = NULL;
-			exit_left = NULL;
-			enter_right = NULL;
-			exit_right = NULL;
-
-			int fl = ClipEdge (clips);
-
-			if (fl == CLIPFL_REJECT_LR)
-			{
-				medge->cachenum = 0x80000000 | r_framenum;
-				continue;
-			}
-			// clip new and maybe cache
-			//...
-		}
-	}
-
-	//TODO: when the better scanline generation algo
-	// is in place we'll need to set up each drawedge's next
-	// so the emitted drawedge cluster is sorted by v
-
-	return drawedges_p - firstemit;
-}
-#endif
-
-
-#if 0
-static void
-DrawSurfEdge (int e, int c)
-{
-	if (e < 0)
-		e = -e - 1;
-	R_3DLine (map.vertices[map.edges[e].v[0]].xyz, map.vertices[map.edges[e].v[1]].xyz, c);
-}
-#endif
-
 
 #if 0
 void
@@ -766,15 +690,7 @@ R_Surf_DrawDebug ()
 }
 #endif
 
-
-
-
-
 #if 0
-
-	OLD JUNK
-
-
 static void
 DrawSpan (struct drawspan_s *s, int c)
 {
@@ -794,7 +710,6 @@ DrawSpan (struct drawspan_s *s, int c)
 	}
 }
 
-
 struct cplane_s
 {
 	double normal[3];
@@ -802,32 +717,6 @@ struct cplane_s
 	struct cplane_s *next;
 	int vplaneidx;
 };
-
-
-/* for (i = VPLANE_ITER_MIN; i <= VPLANE_ITER_MAX; i <<= 1) { } */
-#define VPLANE_ITER_MIN VPLANE_LEFT_MASK
-#define VPLANE_ITER_MAX VPLANE_BOTTOM_MASK
-
-
-	struct drawsurf_s *firstemitsurf = surfs_p;
-
-	while (count-- > 0)
-	{
-		struct msurface_s *msurf = &map.surfaces[first++];
-
-		if (!backface_check || Map_DistFromSurface(msurf, camera.pos) >= SURF_BACKFACE_EPSILON)
-			GenerateDrawSurf (msurf, planemask);
-	}
-
-	/* create spans */
-	while (firstemitsurf != surfs_p)
-	{
-		firstemitsurf->spans = r_spans;
-		ScanEdges (&drawedges[firstemitsurf->firstdrawedgeidx], firstemitsurf->numdrawedges);
-		firstemitsurf->numspans = r_spans - firstemitsurf->spans;
-		firstemitsurf++;
-	}
-
 #endif
 
 #if 0
@@ -868,12 +757,4 @@ struct cplane_s
  *   Loop is done when we hit/pass bottom of both left/right edges and
  *   scanedge list is empty.
  */
-#endif
-#if 0
-		if (de == NULL)
-		{
-			/* no drawedges available */
-			//TODO: probably check earlier for enough available
-			return;
-		}
 #endif
