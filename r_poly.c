@@ -229,7 +229,7 @@ FillDrawEdge (struct drawedge_s *de)
 		return 0;
 	}
 
-	if (v2_i <= 0 || v1_i >= video.h)
+	if (v2_i < 0 || v1_i >= video.h)
 	{
 		/* math imprecision sometimes results in nearly-horizontal
 		 * emitted edges just above or just below the screen */
@@ -316,30 +316,90 @@ ClipWithTB (const struct viewplane_s *p)
 }
 
 
+#include <stdio.h>
 static int
 ClipWithLR (int planemask)
 {
+	//TODO: lots of duplicated code here
+
 	if (planemask & VPLANE_LEFT_MASK)
 	{
 		if (planemask & VPLANE_RIGHT_MASK)
 		{
-			// note if both LR are active we must check FULL edge against
-			// both planes; needed to gen enter/exit points
+			/* if both LR are active we must check FULL edge
+			 * against both planes; needed to generate
+			 * enter/exit points */
+			const struct viewplane_s *lp = &camera.vplanes[VPLANE_LEFT];
+			const struct viewplane_s *rp = &camera.vplanes[VPLANE_RIGHT];
+			double l_d1 = Vec_Dot (lp->normal, clip_v1) - lp->dist;
+			double l_d2 = Vec_Dot (lp->normal, clip_v2) - lp->dist;
+			double r_d1 = Vec_Dot (rp->normal, clip_v1) - rp->dist;
+			double r_d2 = Vec_Dot (rp->normal, clip_v2) - rp->dist;
+			// if cross L back to L front, set L enter, L intersect point
+			// if crosses L front to L back, set L exit, L intersect point
+			// if cross R back to R front, set R enter, R intersect point
+			// if crosses R front to R back, set R exit, R intersect point
+			// if behind L, unchopped by R, return CLIP_SINGLE
+			// if behind R, unchopped by L, return CLIP_SINGLE
+			// if intersect both, need an extra side check for the
+			//   fully-behind-camera check
 			//TODO: ...
+			return CLIP_FRONT;
 		}
 		else
 		{
-			/* only 1 vert plane active
+			/* only 1 vertical plane active
 			 * return CLIP_CHOPPED, CLIP_SINGLE, or CLIP_FRONT */
-			//TODO: ...
+			const struct viewplane_s *p = &camera.vplanes[VPLANE_LEFT];
+			double d1 = Vec_Dot (p->normal, clip_v1) - p->dist;
+			double d2 = Vec_Dot (p->normal, clip_v2) - p->dist;
+			if (d1 >= 0.0)
+			{
+				if (d2 < 0.0)
+				{
+					/* edge runs from front -> back */
+					double frac = d1 / (d1 - d2);
+					_exit_l[0] = clip_v1[0] + frac * (clip_v2[0] - clip_v1[0]);
+					_exit_l[1] = clip_v1[1] + frac * (clip_v2[1] - clip_v1[1]);
+					_exit_l[2] = clip_v1[2] + frac * (clip_v2[2] - clip_v1[2]);
+					clip_v2 = exit_left = _exit_l;
+					return CLIP_CHOPPED;
+				}
+				else
+				{
+					/* both vertices on the front side */
+					return CLIP_FRONT;
+				}
+			}
+			else
+			{
+				if (d2 < 0.0)
+				{
+					/* both vertices behind a plane; the edge is
+					 * fully clipped away */
+					return CLIP_SINGLE;
+				}
+				else
+				{
+					/* edge runs from back -> front */
+					double frac = d1 / (d1 - d2);
+					_enter_l[0] = clip_v1[0] + frac * (clip_v2[0] - clip_v1[0]);
+					_enter_l[1] = clip_v1[1] + frac * (clip_v2[1] - clip_v1[1]);
+					_enter_l[2] = clip_v1[2] + frac * (clip_v2[2] - clip_v1[2]);
+					clip_v1 = enter_left = _enter_l;
+					return CLIP_CHOPPED;
+				}
+			}
+			/* shouldn't be reached */
+			return CLIP_FRONT;
 		}
 	}
 
 	if (planemask & VPLANE_RIGHT_MASK)
 	{
-		/* only 1 vert plane active
+		/* only 1 vertical plane active
 		 * return CLIP_CHOPPED, CLIP_SINGLE, or CLIP_FRONT */
-		struct viewplane_s *p = &camera.vplanes[VPLANE_RIGHT];
+		const struct viewplane_s *p = &camera.vplanes[VPLANE_RIGHT];
 		double d1 = Vec_Dot (p->normal, clip_v1) - p->dist;
 		double d2 = Vec_Dot (p->normal, clip_v2) - p->dist;
 		if (d1 >= 0.0)
@@ -372,10 +432,10 @@ ClipWithLR (int planemask)
 			{
 				/* edge runs from back -> front */
 				double frac = d1 / (d1 - d2);
-				_enter_l[0] = clip_v1[0] + frac * (clip_v2[0] - clip_v1[0]);
-				_enter_l[1] = clip_v1[1] + frac * (clip_v2[1] - clip_v1[1]);
-				_enter_l[2] = clip_v1[2] + frac * (clip_v2[2] - clip_v1[2]);
-				clip_v1 = enter_left = _enter_l;
+				_enter_r[0] = clip_v1[0] + frac * (clip_v2[0] - clip_v1[0]);
+				_enter_r[1] = clip_v1[1] + frac * (clip_v2[1] - clip_v1[1]);
+				_enter_r[2] = clip_v1[2] + frac * (clip_v2[2] - clip_v1[2]);
+				clip_v1 = enter_right = _enter_r;
 				return CLIP_CHOPPED;
 			}
 		}
@@ -617,7 +677,6 @@ R_GenSpansForSurfaces (unsigned int first, int count, int planemask, int backfac
 }
 
 
-//TODO: probably don't need reversewinding if edge scanning is smart enough to not need explicit winding edge ordering/direction
 int
 R_CheckPortalVisibility (struct mportal_s *portal, int planemask, int reversewinding)
 {
