@@ -436,62 +436,82 @@ ClipWithLR (int planemask)
 
 	if (l_d1 >= 0.0)
 	{
-		//TODO: set exit L
+		Vec_Copy (l, _exit_l);
+		exit_left = _exit_l;
+	}
+	else
+	{
+		Vec_Copy (l, _enter_l);
+		enter_left = _enter_l;
+	}
+
+	if (r_d1 >= 0.0)
+	{
+		Vec_Copy (r, _exit_r);
+		exit_right = _exit_r;
+	}
+	else
+	{
+		Vec_Copy (r, _enter_r);
+		enter_right = _enter_r;
+	}
+
+	if (l_d1 >= 0.0)
+	{
 		if (r_d2 >= 0.0)
 		{
-			//TODO: set enter R
-			//TODO: calc l dist to R
-			if (l front of rplane)
+			double d = Vec_Dot (rp->normal, l) - rp->dist;
+			if (d >= 0.0)
 			{
-				/* enter R exit L */
+				/* enter R exit L; in front of viewpoint */
+				clip_v1 = enter_right;
+				clip_v2 = exit_left;
 			}
 			else
 			{
-				/* exit L enter R */
-				//copy
-				return 
+				/* exit L enter R; behind viewpoint */
+				return CLIP_DOUBLE_CHOPPED;
 			}
 		}
 		else
 		{
-			//TODO: set exit R
-			//...
+			double d = Vec_Dot (rp->normal, l) - rp->dist;
+			if (d >= 0.0)
+				clip_v2 = exit_left;
+			else
+				clip_v2 = exit_right;
+			return CLIP_CHOPPED;
 		}
 	}
 	else
 	{
-		//TODO: ...
+		if (r_d2 >= 0.0)
+		{
+			double d = Vec_Dot (lp->normal, r) - lp->dist;
+			if (d >= 0.0)
+				clip_v1 = enter_right;
+			else
+				clip_v1 = enter_left;
+			return CLIP_CHOPPED;
+		}
+		else
+		{
+			double d = Vec_Dot (lp->normal, r) - lp->dist;
+			if (d >= 0.0)
+			{
+				clip_v1 = enter_left;
+				clip_v2 = exit_right;
+			}
+			else
+			{
+				/* exit R enter L; behind viewpoint */
+				return CLIP_DOUBLE_CHOPPED;
+			}
+		}
 	}
+
 	/* should not be reached */
 	return CLIP_FRONT;
-
-#if 0
-
-	if (lstatus == CLIP_FRONT)
-		return rstatus;
-
-	if (rstatus == CLIP_FRONT)
-		return lstatus;
-
-	if (lstatus == CLIP_SINGLE)
-	{
-		if (rstatus == CLIP_SINGLE)
-			return CLIP_BOTH; /* behind both viewplanes */
-		/* else if (rstatus == CLIP_FRONT) case already handled above */
-		else
-			return CLIP_SINGLE_CHOPPED; /* behind L, chopped by R */
-	}
-
-	if (rstatus == CLIP_SINGLE)
-	{
-		/* if (lstatus == CLIP_SINGLE) case already handled above */
-		/* else if (lstatus == CLIP_FRONT) case already handled above */
-		return CLIP_SINGLE_CHOPPED; /* behind R, chopped by L */
-	}
-
-	/* chopped by both */
-	//TODO: ...
-#endif
 }
 
 
@@ -558,14 +578,6 @@ ProcessEnterExitEdge (double enter[3], double exit[3], int planemask)
 static void
 GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 {
-	if (0)
-	{
-		int *eloop_ptr = &map.edgeloops[edgeloop_start];
-		while (numedges-- > 0)
-			DebugDrawMapEdge (*eloop_ptr++);
-		return;
-	}
-
 	struct scanedge_s scanpool[MAX_POLY_DRAWEDGES];
 
 	scanedge_p = scanpool;
