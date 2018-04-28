@@ -161,6 +161,9 @@ enum
 	CLIP_SINGLE, /* behind L or behind R */
 	CLIP_DOUBLE, /* behind both L and R */
 	CLIP_FRONT, /* fully in front of plane */
+	CLIP_SINGLE_CHOPPED, /* behind a plane, chopped by other;
+				necessary to gen enter/exit points */
+	CLIP_DOUBLE_CHOPPED, /* behind viewpoint, crossing both planes */
 };
 
 static double *clip_v1;
@@ -268,22 +271,32 @@ NewDrawEdge (void)
 }
 
 
+static inline double *
+Intersect (	const double v1[3],
+		const double v2[3],
+		double d1,
+		double d2,
+		double out[3] )
+{
+	double frac = d1 / (d1 - d2);
+	out[0] = v1[0] + frac * (v2[0] - v1[0]);
+	out[1] = v1[1] + frac * (v2[1] - v1[1]);
+	out[2] = v1[2] + frac * (v2[2] - v1[2]);
+	return out;
+}
+
+
 static int
 ClipWithTB (const struct viewplane_s *p)
 {
 	double d1 = Vec_Dot (p->normal, clip_v1) - p->dist;
 	double d2 = Vec_Dot (p->normal, clip_v2) - p->dist;
-
 	if (d1 >= 0.0)
 	{
 		if (d2 < 0.0)
 		{
 			/* edge runs from front -> back */
-			double frac = d1 / (d1 - d2);
-			_clip_2[0] = clip_v1[0] + frac * (clip_v2[0] - clip_v1[0]);
-			_clip_2[1] = clip_v1[1] + frac * (clip_v2[1] - clip_v1[1]);
-			_clip_2[2] = clip_v1[2] + frac * (clip_v2[2] - clip_v1[2]);
-			clip_v2 = _clip_2;
+			clip_v2 = Intersect (clip_v1, clip_v2, d1, d2, _clip_2);
 			return CLIP_CHOPPED;
 		}
 		else
@@ -303,11 +316,7 @@ ClipWithTB (const struct viewplane_s *p)
 		else
 		{
 			/* edge runs from back -> front */
-			double frac = d1 / (d1 - d2);
-			_clip_1[0] = clip_v1[0] + frac * (clip_v2[0] - clip_v1[0]);
-			_clip_1[1] = clip_v1[1] + frac * (clip_v2[1] - clip_v1[1]);
-			_clip_1[2] = clip_v1[2] + frac * (clip_v2[2] - clip_v1[2]);
-			clip_v1 = _clip_1;
+			clip_v1 = Intersect (clip_v1, clip_v2, d1, d2, _clip_1);
 			return CLIP_CHOPPED;
 		}
 	}
@@ -316,134 +325,173 @@ ClipWithTB (const struct viewplane_s *p)
 }
 
 
-#include <stdio.h>
 static int
+DoSingleLeft (double d1, double d2)
+{
+	if (d1 >= 0.0)
+	{
+		if (d2 < 0.0)
+		{
+			/* edge runs from front -> back */
+			clip_v2 = exit_left = Intersect (clip_v1, clip_v2, d1, d2, _exit_l);
+			return CLIP_CHOPPED;
+		}
+		else
+		{
+			/* both vertices on the front side */
+			return CLIP_FRONT;
+		}
+	}
+	else
+	{
+		if (d2 < 0.0)
+		{
+			/* both vertices behind a plane; the edge is
+			 * fully clipped away */
+			return CLIP_SINGLE;
+		}
+		else
+		{
+			/* edge runs from back -> front */
+			clip_v1 = enter_left = Intersect (clip_v1, clip_v2, d1, d2, _enter_l);
+			return CLIP_CHOPPED;
+		}
+	}
+	/* should not be reached */
+	return CLIP_FRONT;
+}
+
+
+static int
+DoSingleRight (double d1, double d2)
+{
+	if (d1 >= 0.0)
+	{
+		if (d2 < 0.0)
+		{
+			/* edge runs from front -> back */
+			clip_v2 = exit_right = Intersect (clip_v1, clip_v2, d1, d2, _exit_r);
+			return CLIP_CHOPPED;
+		}
+		else
+		{
+			/* both vertices on the front side */
+			return CLIP_FRONT;
+		}
+	}
+	else
+	{
+		if (d2 < 0.0)
+		{
+			/* both vertices behind a plane; the edge is
+			 * fully clipped away */
+			return CLIP_SINGLE;
+		}
+		else
+		{
+			/* edge runs from back -> front */
+			clip_v1 = enter_right = Intersect (clip_v1, clip_v2, d1, d2, _enter_r);
+			return CLIP_CHOPPED;
+		}
+	}
+	/* should not be reached */
+	return CLIP_FRONT;
+}
+
+
+/* assumes at least 1 of L/R is active */
+int
 ClipWithLR (int planemask)
 {
-	//TODO: lots of duplicated code here
+	const struct viewplane_s *lp = &camera.vplanes[VPLANE_LEFT];
+	double l_d1 = Vec_Dot (lp->normal, clip_v1) - lp->dist;
+	double l_d2 = Vec_Dot (lp->normal, clip_v2) - lp->dist;
 
-	if (planemask & VPLANE_LEFT_MASK)
+	if ((planemask & VPLANE_LEFT_MASK) && !(planemask & VPLANE_RIGHT_MASK))
+		return DoSingleLeft (l_d1, l_d2);
+
+	const struct viewplane_s *rp = &camera.vplanes[VPLANE_RIGHT];
+	double r_d1 = Vec_Dot (rp->normal, clip_v1) - rp->dist;
+	double r_d2 = Vec_Dot (rp->normal, clip_v2) - rp->dist;
+
+	if (!(planemask & VPLANE_LEFT_MASK) && (planemask & VPLANE_RIGHT_MASK))
+		return DoSingleRight (r_d1, r_d2);
+
+	/* both active */
+
+	if (l_d1 < 0.0 && l_d2 < 0.0 && r_d1 < 0.0 && r_d2 < 0.0)
+		return CLIP_DOUBLE;
+
+	if ((l_d1 >= 0.0 && l_d2 >= 0.0) || (l_d1 < 0.0 && l_d2 < 0.0))
+		return DoSingleRight (r_d1, r_d2);
+
+	if ((r_d1 >= 0.0 && r_d2 >= 0.0) || (r_d1 < 0.0 && r_d2 < 0.0))
+		return DoSingleLeft (l_d1, l_d2);
+
+	/* crosses both planes */
+
+	double l[3], r[3];
+	Intersect (clip_v1, clip_v2, l_d1, l_d2, l);
+	Intersect (clip_v1, clip_v2, r_d1, r_d2, r);
+
+	if (l_d1 >= 0.0)
 	{
-		if (planemask & VPLANE_RIGHT_MASK)
+		//TODO: set exit L
+		if (r_d2 >= 0.0)
 		{
-			/* if both LR are active we must check FULL edge
-			 * against both planes; needed to generate
-			 * enter/exit points */
-			const struct viewplane_s *lp = &camera.vplanes[VPLANE_LEFT];
-			const struct viewplane_s *rp = &camera.vplanes[VPLANE_RIGHT];
-			double l_d1 = Vec_Dot (lp->normal, clip_v1) - lp->dist;
-			double l_d2 = Vec_Dot (lp->normal, clip_v2) - lp->dist;
-			double r_d1 = Vec_Dot (rp->normal, clip_v1) - rp->dist;
-			double r_d2 = Vec_Dot (rp->normal, clip_v2) - rp->dist;
-			// if cross L back to L front, set L enter, L intersect point
-			// if crosses L front to L back, set L exit, L intersect point
-			// if cross R back to R front, set R enter, R intersect point
-			// if crosses R front to R back, set R exit, R intersect point
-			// if behind L, unchopped by R, return CLIP_SINGLE
-			// if behind R, unchopped by L, return CLIP_SINGLE
-			// if intersect both, need an extra side check for the
-			//   fully-behind-camera check
-			//TODO: ...
-			return CLIP_FRONT;
-		}
-		else
-		{
-			/* only 1 vertical plane active
-			 * return CLIP_CHOPPED, CLIP_SINGLE, or CLIP_FRONT */
-			const struct viewplane_s *p = &camera.vplanes[VPLANE_LEFT];
-			double d1 = Vec_Dot (p->normal, clip_v1) - p->dist;
-			double d2 = Vec_Dot (p->normal, clip_v2) - p->dist;
-			if (d1 >= 0.0)
+			//TODO: set enter R
+			//TODO: calc l dist to R
+			if (l front of rplane)
 			{
-				if (d2 < 0.0)
-				{
-					/* edge runs from front -> back */
-					double frac = d1 / (d1 - d2);
-					_exit_l[0] = clip_v1[0] + frac * (clip_v2[0] - clip_v1[0]);
-					_exit_l[1] = clip_v1[1] + frac * (clip_v2[1] - clip_v1[1]);
-					_exit_l[2] = clip_v1[2] + frac * (clip_v2[2] - clip_v1[2]);
-					clip_v2 = exit_left = _exit_l;
-					return CLIP_CHOPPED;
-				}
-				else
-				{
-					/* both vertices on the front side */
-					return CLIP_FRONT;
-				}
+				/* enter R exit L */
 			}
 			else
 			{
-				if (d2 < 0.0)
-				{
-					/* both vertices behind a plane; the edge is
-					 * fully clipped away */
-					return CLIP_SINGLE;
-				}
-				else
-				{
-					/* edge runs from back -> front */
-					double frac = d1 / (d1 - d2);
-					_enter_l[0] = clip_v1[0] + frac * (clip_v2[0] - clip_v1[0]);
-					_enter_l[1] = clip_v1[1] + frac * (clip_v2[1] - clip_v1[1]);
-					_enter_l[2] = clip_v1[2] + frac * (clip_v2[2] - clip_v1[2]);
-					clip_v1 = enter_left = _enter_l;
-					return CLIP_CHOPPED;
-				}
-			}
-			/* shouldn't be reached */
-			return CLIP_FRONT;
-		}
-	}
-
-	if (planemask & VPLANE_RIGHT_MASK)
-	{
-		/* only 1 vertical plane active
-		 * return CLIP_CHOPPED, CLIP_SINGLE, or CLIP_FRONT */
-		const struct viewplane_s *p = &camera.vplanes[VPLANE_RIGHT];
-		double d1 = Vec_Dot (p->normal, clip_v1) - p->dist;
-		double d2 = Vec_Dot (p->normal, clip_v2) - p->dist;
-		if (d1 >= 0.0)
-		{
-			if (d2 < 0.0)
-			{
-				/* edge runs from front -> back */
-				double frac = d1 / (d1 - d2);
-				_exit_r[0] = clip_v1[0] + frac * (clip_v2[0] - clip_v1[0]);
-				_exit_r[1] = clip_v1[1] + frac * (clip_v2[1] - clip_v1[1]);
-				_exit_r[2] = clip_v1[2] + frac * (clip_v2[2] - clip_v1[2]);
-				clip_v2 = exit_right = _exit_r;
-				return CLIP_CHOPPED;
-			}
-			else
-			{
-				/* both vertices on the front side */
-				return CLIP_FRONT;
+				/* exit L enter R */
+				//copy
+				return 
 			}
 		}
 		else
 		{
-			if (d2 < 0.0)
-			{
-				/* both vertices behind a plane; the edge is
-				 * fully clipped away */
-				return CLIP_SINGLE;
-			}
-			else
-			{
-				/* edge runs from back -> front */
-				double frac = d1 / (d1 - d2);
-				_enter_r[0] = clip_v1[0] + frac * (clip_v2[0] - clip_v1[0]);
-				_enter_r[1] = clip_v1[1] + frac * (clip_v2[1] - clip_v1[1]);
-				_enter_r[2] = clip_v1[2] + frac * (clip_v2[2] - clip_v1[2]);
-				clip_v1 = enter_right = _enter_r;
-				return CLIP_CHOPPED;
-			}
+			//TODO: set exit R
+			//...
 		}
-		/* shouldn't be reached */
-		return CLIP_FRONT;
 	}
-
+	else
+	{
+		//TODO: ...
+	}
+	/* should not be reached */
 	return CLIP_FRONT;
+
+#if 0
+
+	if (lstatus == CLIP_FRONT)
+		return rstatus;
+
+	if (rstatus == CLIP_FRONT)
+		return lstatus;
+
+	if (lstatus == CLIP_SINGLE)
+	{
+		if (rstatus == CLIP_SINGLE)
+			return CLIP_BOTH; /* behind both viewplanes */
+		/* else if (rstatus == CLIP_FRONT) case already handled above */
+		else
+			return CLIP_SINGLE_CHOPPED; /* behind L, chopped by R */
+	}
+
+	if (rstatus == CLIP_SINGLE)
+	{
+		/* if (lstatus == CLIP_SINGLE) case already handled above */
+		/* else if (lstatus == CLIP_FRONT) case already handled above */
+		return CLIP_SINGLE_CHOPPED; /* behind R, chopped by L */
+	}
+
+	/* chopped by both */
+	//TODO: ...
+#endif
 }
 
 
@@ -569,6 +617,13 @@ GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 			{
 				/* can cache as non-visible this frame */
 				medge->cachenum = r_framenum | 0x80000000;
+				continue;
+			}
+			else if (lr_status == CLIP_SINGLE_CHOPPED || lr_status == CLIP_DOUBLE_CHOPPED)
+			{
+				/* non-visible but it can't be cached as
+				 * a later edge may need it to generate
+				 * enter/exit points */
 				continue;
 			}
 		}
@@ -817,3 +872,4 @@ struct cplane_s
  *   scanedge list is empty.
  */
 #endif
+
