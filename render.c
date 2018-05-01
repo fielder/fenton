@@ -224,7 +224,7 @@ R_Refresh (void)
 void
 R_Die (const char *msg)
 {
-	F_Error ("%s\n%f %f %f %f %f %f",
+	F_Error ("%s\npos: %f %f %f\nangles: %f %f %f",
 		msg,
 		camera.pos[0],
 		camera.pos[1],

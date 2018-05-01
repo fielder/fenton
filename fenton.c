@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#include "parse.h"
 #include "map.h"
 #include "fdata.h"
 #include "vec.h"
@@ -158,6 +159,15 @@ F_RunTime (int msecs)
 
 	RunInput ();
 
+if (0) {
+camera.pos[0] = 81.925000;
+camera.pos[1] = 64.399400;
+camera.pos[2] = 246.758000;
+camera.angles[0] = 0.129119;
+camera.angles[1] = 1.978220;
+camera.angles[2] = 0.0;
+R_CalcViewXForm ();
+}
 	R_Refresh ();
 
 	IO_Swap ();
@@ -229,9 +239,41 @@ CameraMovement (void)
 }
 
 
+#define CAM_SAVE_FILE "cam.debug"
+
+static void
+SaveCam (void)
+{
+	//...
+}
+
+
+static void
+LoadCam (void)
+{
+	char *dat;
+	int fsize;
+	if ((dat = Data_ReadFile (CAM_SAVE_FILE, &fsize)) == NULL)
+		return;
+	Parse_Begin (dat);
+	//...
+}
+
+
 static void
 RunInput (void)
 {
+	if (input.key.release['s'] && input.key.state[FK_LCTRL])
+	{
+		SaveCam ();
+		return;
+	}
+	if (input.key.release['l'] && input.key.state[FK_LCTRL])
+	{
+		LoadCam ();
+		return;
+	}
+
 	if (input.key.release[FK_ESCAPE])
 		F_Quit ();
 
@@ -250,12 +292,36 @@ RunInput (void)
 	if (input.key.release['4'])
 		F_LoadMap ("TEST4");
 
+	if (input.key.release[FK_F1])
+	{
+		camera.pos[0] = 81.925;
+		camera.pos[1] = 64.3994;
+		camera.pos[2] = 246.758;
+		camera.angles[0] = -0.74497;
+		camera.angles[1] = 1.04556;
+		camera.angles[2] = 0.0;
+	}
+	if (input.key.release[FK_F2])
+	{
+		camera.pos[0] = 81.925;
+		camera.pos[1] = 64.3994;
+		camera.pos[2] = 246.758;
+		camera.angles[0] = 1.20162;
+		camera.angles[1] = 0.171805;
+		camera.angles[2] = 0.0;
+	}
+	if (input.key.release[FK_F3])
+	{
+		camera.pos[0] = 61.507820;
+		camera.pos[1] = 53.571485;
+		camera.pos[2] = 191.174879;
+		camera.angles[0] = -0.267707;
+		camera.angles[1] = 4.894012;
+		camera.angles[2] = 0.000000;
+	}
+
 	if (input.key.release['z'])
 		r_gspan_debug = !r_gspan_debug;
-
-	if (input.key.release['d'])
-	{
-	}
 
 	if (input.key.release['p'])
 	{
@@ -266,8 +332,8 @@ RunInput (void)
 		}
 		else
 		{
-			F_Log ("(%g %g %g)\n", camera.pos[0], camera.pos[1], camera.pos[2]);
 			F_Log ("dist: %g\n", camera.dist);
+			F_Log ("pos: %g %g %g\n", camera.pos[0], camera.pos[1], camera.pos[2]);
 			F_Log ("angles: %g %g %g\n", camera.angles[0], camera.angles[1], camera.angles[2]);
 			F_Log ("left: (%g %g %g)\n", camera.left[0], camera.left[1], camera.left[2]);
 			F_Log ("up: (%g %g %g)\n", camera.up[0], camera.up[1], camera.up[2]);

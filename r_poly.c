@@ -73,7 +73,7 @@ static struct scanedge_s *scanedge_end = NULL;
 
 
 static void
-DebugDrawEdge (struct drawedge_s *de)
+DebugDrawEdge (struct drawedge_s *de, int c)
 {
 	int y, u;
 	for (y = de->top, u = de->u; y <= de->bottom; y++, u += de->du)
@@ -82,9 +82,9 @@ DebugDrawEdge (struct drawedge_s *de)
 		if (y >= 0 && y < video.h && x >= 0 && x < video.w)
 		{
 			if (video.bpp == 16)
-				((unsigned short *)video.rows[y])[x] = 0xffff;
+				((unsigned short *)video.rows[y])[x] = (unsigned short)c;
 			else
-				((unsigned int *)video.rows[y])[x] = 0xffffffff;
+				((unsigned int *)video.rows[y])[x] = (unsigned int)c;
 		}
 	}
 }
@@ -105,9 +105,18 @@ static void
 ProcessScanEdges (void)
 {
 #if 1
+	int c = 0xffffffff;
 	struct scanedge_s *se;
 	for (se = scanedge_head.next; se != NULL; se = se->next)
-		DebugDrawEdge (se->drawedge);
+	{
+		/*
+		if (se->drawedge->medgeidx == 0) c = video.red;
+		else if (se->drawedge->medgeidx == 1) c = video.green;
+		else if (se->drawedge->medgeidx == 2) c = video.blue;
+		else c = 0xffffffff;
+		*/
+		DebugDrawEdge (se->drawedge, c);
+	}
 #else
 /* pre-adjust screen x coords so we end up with the correct pixel after shifting down */
 // de->u += ((1 << 20) / 2) - 1;
@@ -161,9 +170,8 @@ enum
 	CLIP_SINGLE, /* behind L or behind R */
 	CLIP_DOUBLE, /* behind both L and R */
 	CLIP_FRONT, /* fully in front of plane */
-	CLIP_SINGLE_CHOPPED, /* behind a plane, chopped by other;
-				necessary to gen enter/exit points */
-	CLIP_DOUBLE_CHOPPED, /* behind viewpoint, crossing both planes */
+	CLIP_CHOPPED_BACK, /* chopped by a LR plane, but not visible;
+			      needed to gen enter/exit points */
 };
 
 static double *clip_v1;
@@ -422,11 +430,27 @@ ClipWithLR (int planemask)
 	if (l_d1 < 0.0 && l_d2 < 0.0 && r_d1 < 0.0 && r_d2 < 0.0)
 		return CLIP_DOUBLE;
 
-	if ((l_d1 >= 0.0 && l_d2 >= 0.0) || (l_d1 < 0.0 && l_d2 < 0.0))
+	if (l_d1 >= 0.0 && l_d2 >= 0.0)
 		return DoSingleRight (r_d1, r_d2);
+	else if (l_d1 < 0.0 && l_d2 < 0.0)
+	{
+		/* behind left vplane */
+		int st = DoSingleRight (r_d1, r_d2);
+		if (st == CLIP_CHOPPED)
+			return CLIP_CHOPPED_BACK;
+		return CLIP_SINGLE;
+	}
 
-	if ((r_d1 >= 0.0 && r_d2 >= 0.0) || (r_d1 < 0.0 && r_d2 < 0.0))
+	if (r_d1 >= 0.0 && r_d2 >= 0.0)
 		return DoSingleLeft (l_d1, l_d2);
+	else if (r_d1 < 0.0 && r_d2 < 0.0)
+	{
+		/* behind right vplane */
+		int st = DoSingleLeft (l_d1, l_d2);
+		if (st == CLIP_CHOPPED)
+			return CLIP_CHOPPED_BACK;
+		return CLIP_SINGLE;
+	}
 
 	/* crosses both planes */
 
@@ -466,11 +490,12 @@ ClipWithLR (int planemask)
 				/* enter R exit L; in front of viewpoint */
 				clip_v1 = enter_right;
 				clip_v2 = exit_left;
+				return CLIP_CHOPPED;
 			}
 			else
 			{
 				/* exit L enter R; behind viewpoint */
-				return CLIP_DOUBLE_CHOPPED;
+				return CLIP_CHOPPED_BACK;
 			}
 		}
 		else
@@ -501,11 +526,12 @@ ClipWithLR (int planemask)
 			{
 				clip_v1 = enter_left;
 				clip_v2 = exit_right;
+				return CLIP_CHOPPED;
 			}
 			else
 			{
 				/* exit R enter L; behind viewpoint */
-				return CLIP_DOUBLE_CHOPPED;
+				return CLIP_CHOPPED_BACK;
 			}
 		}
 	}
@@ -603,9 +629,10 @@ GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 
 		if (medgeidx < 0)
 		{
-			if (TryEdgeCache(-medgeidx - 1))
+			medgeidx = -medgeidx - 1;
+			if (TryEdgeCache(medgeidx))
 				continue;
-			medge = &map.edges[-medgeidx - 1];
+			medge = &map.edges[medgeidx];
 			clip_v1 = map.vertices[medge->v[1]].xyz;
 			clip_v2 = map.vertices[medge->v[0]].xyz;
 		}
@@ -631,7 +658,7 @@ GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 				medge->cachenum = r_framenum | 0x80000000;
 				continue;
 			}
-			else if (lr_status == CLIP_SINGLE_CHOPPED || lr_status == CLIP_DOUBLE_CHOPPED)
+			else if (lr_status == CLIP_CHOPPED_BACK)
 			{
 				/* non-visible but it can't be cached as
 				 * a later edge may need it to generate
@@ -671,6 +698,7 @@ GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 			if ((de = NewDrawEdge()) != NULL)
 			{
 				medge->cachenum = de - drawedges;
+				de->medgeidx = medgeidx;
 				EmitScanEdge (de);
 			}
 		}
@@ -690,6 +718,7 @@ GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 			R_Die ("L enter, no exit");
 		ProcessEnterExitEdge (enter_left, exit_left, planemask);
 	}
+
 	if (enter_right != NULL || exit_right != NULL)
 	{
 		if (enter_right == NULL)
@@ -701,10 +730,14 @@ GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 
 	if (scanedge_p - scanpool < 2)
 	{
-		/* must have at least 2 edges
-		 * 2 because we omit horizontal drawedges that don't
-		 * cross a pixel center vertically */
-		R_Die ("too few edges created");
+		if (scanedge_p - scanpool == 1)
+		{
+			/* must have at least 2 edges
+			 * 2 because we omit horizontal drawedges that don't
+			 * cross a pixel center vertically */
+			R_Die ("too few edges created");
+		}
+		return;
 	}
 
 	ProcessScanEdges ();
@@ -793,27 +826,8 @@ ClampU (int u)
 		return video.w * (1<<20) - 1;
 	return u;
 }
-#endif
 
-#if 0
-void
-R_Surf_DrawDebug ()
-{
-	struct drawsurf_s *drawsurf;
-	int num;
-
-	for (drawsurf = surfs, num = 0; drawsurf != surfs_p; drawsurf++, num++)
-	{
-		int c = ((uintptr_t)&map.surfaces[drawsurf->msurfidx] >> 4) & 0xffffff;
-		int i;
-		for (i = 0; i < drawsurf->numspans; i++)
-			DrawSpan (&drawsurf->spans[i], c);
-		DrawSurfaceEdges (&map.surfaces[drawsurf->msurfidx], 0);
-	}
-
-	if (0)
-		printf("%u: %d surfs\n", r_framenum, num);
-}
+int color = ((uintptr_t)&map.surfaces[drawsurf->msurfidx] >> 4) & 0xffffff;
 #endif
 
 #if 0
@@ -835,14 +849,6 @@ DrawSpan (struct drawspan_s *s, int c)
 			*dest++ = c;
 	}
 }
-
-struct cplane_s
-{
-	double normal[3];
-	double dist;
-	struct cplane_s *next;
-	int vplaneidx;
-};
 #endif
 
 #if 0

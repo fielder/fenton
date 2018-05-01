@@ -21,6 +21,7 @@ OBJS =	$(OBJDIR)/bdat.o \
 	$(OBJDIR)/map.o \
 	$(OBJDIR)/r_poly.o \
 	$(OBJDIR)/clip.o \
+	$(OBJDIR)/parse.o \
 
 all: $(TARGET)
 
@@ -58,4 +59,6 @@ $(OBJDIR)/map.o: map.c
 $(OBJDIR)/r_poly.o: r_poly.c
 	$(CC) -c $(CFLAGS) $? -o $@
 $(OBJDIR)/clip.o: clip.c
+	$(CC) -c $(CFLAGS) $? -o $@
+$(OBJDIR)/parse.o: parse.c
 	$(CC) -c $(CFLAGS) $? -o $@
