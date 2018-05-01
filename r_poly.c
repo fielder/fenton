@@ -68,6 +68,7 @@ struct drawedge_s *extraedges_p = NULL;
 struct drawedge_s *extraedges_end = NULL;
 
 static struct scanedge_s scanedge_head;
+static struct scanedge_s *scanedges = NULL;
 static struct scanedge_s *scanedge_p = NULL;
 static struct scanedge_s *scanedge_end = NULL;
 
@@ -121,24 +122,34 @@ ProcessScanEdges (void)
 /* pre-adjust screen x coords so we end up with the correct pixel after shifting down */
 // de->u += ((1 << 20) / 2) - 1;
 
-	//TODO: do me
-	int l_u, l_du, l_bottom;
-	int r_u, r_du, r_bottom;
-	int v = scanedge_head.next->top;
-	int nextv = v;
+	v = first top
 	while (1)
 	{
-		while (v < nextv)
-		{
-			R_Span_ClipAndEmit (v, l_u >> U_FRACBITS, r_u >> U_FRACBITS);
-			l_u += l_du;
-			r_u += r_du;
-			v++;
-		}
-		// run through scanedge list, emitting spans
-//		if (no more scanedges waiting and )
-//			break;
+		if (no next scanedge)
+			break;
+		fetch scanedges off head, set up variables
+		while (v < bottommost-nextbottom)
+			clip, emit, step
 	}
+
+//	//TODO: do me
+//	int l_u, l_du, l_bottom;
+//	int r_u, r_du, r_bottom;
+//	int v = scanedge_head.next->top;
+//	int nextv = v;
+//	while (1)
+//	{
+//		while (v < nextv)
+//		{
+//			R_Span_ClipAndEmit (v, l_u >> U_FRACBITS, r_u >> U_FRACBITS);
+//			l_u += l_du;
+//			r_u += r_du;
+//			v++;
+//		}
+//		// run through scanedge list, emitting spans
+////		if (no more scanedges waiting and )
+////			break;
+//	}
 #endif
 }
 
@@ -604,10 +615,9 @@ ProcessEnterExitEdge (double enter[3], double exit[3], int planemask)
 static void
 GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 {
-	struct scanedge_s scanpool[MAX_POLY_DRAWEDGES];
-
-	scanedge_p = scanpool;
-	scanedge_end = scanpool + (sizeof(scanpool) / sizeof(scanpool[0]));
+	struct scanedge_s _spool[MAX_POLY_DRAWEDGES];
+	scanedges = scanedge_p = _spool;
+	scanedge_end = _spool + (sizeof(_spool) / sizeof(_spool[0]));
 	scanedge_head.drawedge = NULL;
 	scanedge_head.next = NULL;
 	scanedge_head.top = -9999;
@@ -712,31 +722,43 @@ GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 
 	if (enter_left != NULL || exit_left != NULL)
 	{
+#if 1
 		if (enter_left == NULL)
 			R_Die ("L exit, no enter");
 		if (exit_left == NULL)
 			R_Die ("L enter, no exit");
+#endif
 		ProcessEnterExitEdge (enter_left, exit_left, planemask);
 	}
 
 	if (enter_right != NULL || exit_right != NULL)
 	{
+#if 1
 		if (enter_right == NULL)
 			R_Die ("R exit, no enter");
 		if (exit_right == NULL)
 			R_Die ("R enter, no exit");
+#endif
 		ProcessEnterExitEdge (enter_right, exit_right, planemask);
 	}
 
-	if (scanedge_p - scanpool < 2)
+	if (scanedge_p == scanedges)
 	{
-		if (scanedge_p - scanpool == 1)
-		{
-			/* must have at least 2 edges
-			 * 2 because we omit horizontal drawedges that don't
-			 * cross a pixel center vertically */
-			R_Die ("too few edges created");
-		}
+		/* winding not visible */
+		return;
+	}
+
+	if (scanedge_p - scanedges == 1)
+	{
+		/* possible to gen only 1 scanedge due to math
+		 * imprecision
+		 * camera.pos[0] = 50.452744;
+		 * camera.pos[1] = 20.029897;
+		 * camera.pos[2] = 42.966270;
+		 * camera.angles[0] = 0.198413;
+		 * camera.angles[1] = 5.419247;
+		 * camera.angles[2] = 0.000000;
+		*/
 		return;
 	}
 
@@ -817,6 +839,8 @@ R_Surf_BeginFrame (void *surfbuf, int surfbufsize, void *edgebuf, int edgebufsiz
 
 
 #if 0
+old junk
+
 static int
 ClampU (int u)
 {
@@ -828,9 +852,7 @@ ClampU (int u)
 }
 
 int color = ((uintptr_t)&map.surfaces[drawsurf->msurfidx] >> 4) & 0xffffff;
-#endif
 
-#if 0
 static void
 DrawSpan (struct drawspan_s *s, int c)
 {
@@ -851,7 +873,6 @@ DrawSpan (struct drawspan_s *s, int c)
 }
 #endif
 
-#if 0
 /*
  * A chopped edge is never cached.
  * Clip against LR first
@@ -874,10 +895,12 @@ DrawSpan (struct drawspan_s *s, int c)
  *   If TB are not active, skip
  * After edges are run through, clip extra LR edges against TB and
  *   emit. Emitted extra LR edges are never cached.
- * If less than 2 edges emitted, die and debug. 2 because we ignore
- *   horizontal edges. eg: simple square emits only 2 vertical edges.
  * When projecting and emitting, don't emit edges that are only 1 pixel
  *   high
+ * If zero edges are emitted, winding is not visible.
+ * If only 1 edge emitted, die and debug. Need at least 2. 2 because
+ *   we ignore horizontal edges. eg: simple square creates only 2
+ *   vertical edges.
  *
  * Emitted edges are stored on a single list, sorted by edge's top v.
  * When adding to list, start searching at bottom as it's more likely
@@ -889,5 +912,3 @@ DrawSpan (struct drawspan_s *s, int c)
  *   Loop is done when we hit/pass bottom of both left/right edges and
  *   scanedge list is empty.
  */
-#endif
-

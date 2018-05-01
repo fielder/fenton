@@ -159,15 +159,6 @@ F_RunTime (int msecs)
 
 	RunInput ();
 
-if (0) {
-camera.pos[0] = 81.925000;
-camera.pos[1] = 64.399400;
-camera.pos[2] = 246.758000;
-camera.angles[0] = 0.129119;
-camera.angles[1] = 1.978220;
-camera.angles[2] = 0.0;
-R_CalcViewXForm ();
-}
 	R_Refresh ();
 
 	IO_Swap ();
@@ -317,6 +308,15 @@ RunInput (void)
 		camera.pos[2] = 191.174879;
 		camera.angles[0] = -0.267707;
 		camera.angles[1] = 4.894012;
+		camera.angles[2] = 0.000000;
+	}
+	if (input.key.release[FK_F4])
+	{
+		camera.pos[0] = 50.452744;
+		camera.pos[1] = 20.029897;
+		camera.pos[2] = 42.966270;
+		camera.angles[0] = 0.198413;
+		camera.angles[1] = 5.419247;
 		camera.angles[2] = 0.000000;
 	}
 
