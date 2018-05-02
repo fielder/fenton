@@ -24,7 +24,6 @@ enum
 				VPLANE_RIGHT_MASK | \
 				VPLANE_TOP_MASK | \
 				VPLANE_BOTTOM_MASK)
-#define VPLANE_LR_MASK	(VPLANE_LEFT_MASK | VPLANE_RIGHT_MASK)
 
 struct viewplane_s
 {

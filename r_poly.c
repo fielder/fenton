@@ -119,37 +119,31 @@ ProcessScanEdges (void)
 		DebugDrawEdge (se->drawedge, c);
 	}
 #else
-/* pre-adjust screen x coords so we end up with the correct pixel after shifting down */
-// de->u += ((1 << 20) / 2) - 1;
-
-	v = first top
-	while (1)
+	struct scanedge_s *nextedge = scanedge_head.next;
+	int l_u, l_du, l_bot;
+	int r_u, r_du, r_bot;
+	int v = nextedge->top;
+	while (nextedge != NULL)
 	{
-		if (no next scanedge)
-			break;
-		fetch scanedges off head, set up variables
-		while (v < bottommost-nextbottom)
-			clip, emit, step
+		while (nextedge->top == v)
+		{
+			struct scanedge_s *se = nextedge;
+			nextedge = nextedge->next;
+			//TODO: pre-adjust l_u, r_u so all that's needed is a shift down
+			// de->u += ((1 << 20) / 2) - 1;
+			//TODO: how to determine L or R edge?
+			//...
+		}
+		int botv = l_bot < r_bot ? l_bot : r_bot;
+		while (v <= botv)
+		{
+			if (l_u <= r_u)
+				R_Span_ClipAndEmit (v, l_u >> U_FRACBITS, r_u >> U_FRACBITS);
+			l_u += l_du;
+			r_u += r_du;
+			v++;
+		}
 	}
-
-//	//TODO: do me
-//	int l_u, l_du, l_bottom;
-//	int r_u, r_du, r_bottom;
-//	int v = scanedge_head.next->top;
-//	int nextv = v;
-//	while (1)
-//	{
-//		while (v < nextv)
-//		{
-//			R_Span_ClipAndEmit (v, l_u >> U_FRACBITS, r_u >> U_FRACBITS);
-//			l_u += l_du;
-//			r_u += r_du;
-//			v++;
-//		}
-//		// run through scanedge list, emitting spans
-////		if (no more scanedges waiting and )
-////			break;
-//	}
 #endif
 }
 
@@ -160,7 +154,7 @@ EmitScanEdge (struct drawedge_s *drawedge)
 	if (scanedge_p != scanedge_end)
 	{
 		struct scanedge_s *p = &scanedge_head;
-		struct scanedge_s *n = p->next;;
+		struct scanedge_s *n = p->next;
 		while (n != NULL && n->top < drawedge->top)
 		{
 			n = n->next;
@@ -622,9 +616,9 @@ GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 	scanedge_head.next = NULL;
 	scanedge_head.top = -9999;
 
-	struct drawedge_s _ex[MAX_POLY_DRAWEDGES];
-	extraedges = extraedges_p = _ex;
-	extraedges_end = _ex + (sizeof(_ex) / sizeof(_ex[0]));
+	struct drawedge_s _extra[MAX_POLY_DRAWEDGES];
+	extraedges = extraedges_p = _extra;
+	extraedges_end = _extra + (sizeof(_extra) / sizeof(_extra[0]));
 
 	enter_left = NULL;
 	exit_left = NULL;
@@ -659,7 +653,7 @@ GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 		t_status = CLIP_FRONT;
 		b_status = CLIP_FRONT;
 
-		if (planemask & VPLANE_LR_MASK)
+		if (planemask & (VPLANE_LEFT_MASK | VPLANE_RIGHT_MASK))
 		{
 			lr_status = ClipWithLR (planemask);
 			if (lr_status == CLIP_SINGLE || lr_status == CLIP_DOUBLE)

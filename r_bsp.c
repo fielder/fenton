@@ -94,7 +94,6 @@ static void
 VisitNodeRecursive (void *visit, int planemask)
 {
 	int newplanemask = 0x0;
-	unsigned short flags = NODEFL_FLAGS(visit);
 
 	/* check node/leaf bbox against active viewplanes and
 	 * update active viewplane set */
@@ -103,8 +102,7 @@ VisitNodeRecursive (void *visit, int planemask)
 		int vplaneidx;
 		for (vplaneidx = 0; vplaneidx < 4; vplaneidx++)
 		{
-			int bit = 1 << vplaneidx;
-			if (planemask & bit)
+			if (planemask & (1 << vplaneidx))
 			{
 				struct viewplane_s *vp = &camera.vplanes[vplaneidx];
 				double bboxcorner[3];
@@ -130,13 +128,13 @@ VisitNodeRecursive (void *visit, int planemask)
 				{
 					/* bbox intersects the plane, keep it
 					 * in the clip plane list */
-					newplanemask |= bit;
+					newplanemask |= 1 << vplaneidx;
 				}
 			}
 		}
 	}
 
-	if ((flags & NODEFL_LEAF) == NODEFL_LEAF)
+	if ((NODEFL_FLAGS(visit) & NODEFL_LEAF) == NODEFL_LEAF)
 		VisitLeaf (visit, newplanemask);
 	else
 		VisitNode (visit, newplanemask);
