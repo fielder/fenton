@@ -143,11 +143,9 @@ IO_SetMode (int w, int h, int bpp, int scale, int fullscreen)
 	video.blue = blue;
 
 	/* set up row pointers */
-	{
-		int y;
-		for (y = 0; y < video.h; y++)
-			video.rows[y] = (char *)video.buf + y * (video.w * bytes_pp);
-	}
+	int y;
+	for (y = 0; y < video.h; y++)
+		video.rows[y] = (char *)video.buf + y * (video.w * bytes_pp);
 }
 
 

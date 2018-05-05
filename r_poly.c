@@ -12,7 +12,7 @@
 
 #define MAX_EMITEDGES 65535
 
-#define MAX_POLY_DRAWEDGES 64
+#define MAX_POLY_DRAWEDGES 32
 
 /*
  * Since extra edges aren't cached and we scan a poly right after
@@ -27,8 +27,14 @@ struct drawedge_s
 {
 	unsigned int medgeidx; /* medge this came from */
 	int u, du; /* both fixed-point */
-	short top, bottom; /* screen coords */
+	short top, bottom; /* screen coords;
+		if high bit is set for either, originating edge
+		projection is a top-down left edge */
 };
+#define DRAWEDGE_LEFT(_X) (((_X)->top & 0x8000) == 0x8000)
+#define DRAWEDGE_TOP(_X) ((_X)->top & 0x7fff)
+#define DRAWEDGE_BOT(_X) ((_X)->bottom & 0x7fff)
+
 #define U_FRACBITS 20
 
 struct drawsurf_s
@@ -67,7 +73,8 @@ struct drawedge_s *extraedges = NULL;
 struct drawedge_s *extraedges_p = NULL;
 struct drawedge_s *extraedges_end = NULL;
 
-static struct scanedge_s scanedge_head;
+static struct scanedge_s scanedges_l;
+static struct scanedge_s scanedges_r;
 static struct scanedge_s *scanedges = NULL;
 static struct scanedge_s *scanedge_p = NULL;
 static struct scanedge_s *scanedge_end = NULL;
@@ -77,7 +84,7 @@ static void
 DebugDrawEdge (struct drawedge_s *de, int c)
 {
 	int y, u;
-	for (y = de->top, u = de->u; y <= de->bottom; y++, u += de->du)
+	for (y = DRAWEDGE_TOP(de), u = de->u; y <= DRAWEDGE_BOT(de); y++, u += de->du)
 	{
 		int x = u >> U_FRACBITS;
 		if (y >= 0 && y < video.h && x >= 0 && x < video.w)
@@ -105,64 +112,70 @@ DebugDrawMapEdge (int e)
 static void
 ProcessScanEdges (void)
 {
-#if 1
-	int c = 0xffffffff;
-	struct scanedge_s *se;
-	for (se = scanedge_head.next; se != NULL; se = se->next)
+	struct scanedge_s *se_l = scanedges_l.next;
+	struct scanedge_s *se_r = scanedges_r.next;
+	if (se_l == NULL)
+		R_Die ("no L scanedges");
+	if (se_r == NULL)
+		R_Die ("no R scanedges");
+	int v = (se_l->top < se_r->top) ? se_l->top : se_r->top;
+	int bot =	(DRAWEDGE_BOT(se_l->drawedge) > DRAWEDGE_BOT(se_r->drawedge)) ?
+			DRAWEDGE_BOT(se_l->drawedge) :
+			DRAWEDGE_BOT(se_r->drawedge);
+	int l_u = 0x7fffffff;
+	int l_du = 0;
+	int r_u = 0x80000000;
+	int r_du = 0;
+	while (v < video.h && !(se_l == NULL && se_r == NULL && v > bot))
 	{
-		/*
-		if (se->drawedge->medgeidx == 0) c = video.red;
-		else if (se->drawedge->medgeidx == 1) c = video.green;
-		else if (se->drawedge->medgeidx == 2) c = video.blue;
-		else c = 0xffffffff;
-		*/
-		DebugDrawEdge (se->drawedge, c);
-	}
-#else
-	struct scanedge_s *nextedge = scanedge_head.next;
-	int l_u, l_du, l_bot;
-	int r_u, r_du, r_bot;
-	int v = nextedge->top;
-	while (nextedge != NULL)
-	{
-		while (nextedge->top == v)
+		if (se_l != NULL && v >= se_l->top)
 		{
-			struct scanedge_s *se = nextedge;
-			nextedge = nextedge->next;
-			//TODO: pre-adjust l_u, r_u so all that's needed is a shift down
-			// de->u += ((1 << 20) / 2) - 1;
-			//TODO: how to determine L or R edge?
-			//...
+			l_u = se_l->drawedge->u;
+			l_du = se_l->drawedge->du;
+//TODO: pre-adjust l_u, r_u so all that's needed is a shift down
+// de->u += ((1 << 20) / 2) - 1;
+			if (DRAWEDGE_BOT(se_l->drawedge) > bot)
+				bot = DRAWEDGE_BOT(se_l->drawedge);
+			se_l = se_l->next;
 		}
-		int botv = l_bot < r_bot ? l_bot : r_bot;
-		while (v <= botv)
+		if (se_r != NULL && v >= se_r->top)
 		{
-			if (l_u <= r_u)
-				R_Span_ClipAndEmit (v, l_u >> U_FRACBITS, r_u >> U_FRACBITS);
-			l_u += l_du;
-			r_u += r_du;
-			v++;
+			r_u = se_r->drawedge->u;
+			r_du = se_r->drawedge->du;
+//TODO: pre-adjust l_u, r_u so all that's needed is a shift down
+// de->u += ((1 << 20) / 2) - 1;
+			if (DRAWEDGE_BOT(se_r->drawedge) > bot)
+				bot = DRAWEDGE_BOT(se_r->drawedge);
+			se_r = se_r->next;
 		}
+		if (l_u <= r_u && v >= 0)
+			R_Span_ClipAndEmit (v, l_u >> U_FRACBITS, r_u >> U_FRACBITS);
+		l_u += l_du;
+		r_u += r_du;
+		v++;
 	}
-#endif
 }
 
 
 static void
-EmitScanEdge (struct drawedge_s *drawedge)
+EmitScanEdge (struct drawedge_s *drawedge, int is_left)
 {
 	if (scanedge_p != scanedge_end)
 	{
-		struct scanedge_s *p = &scanedge_head;
+		struct scanedge_s *p;
+		if (is_left)
+			p = &scanedges_l;
+		else
+			p = &scanedges_r;
 		struct scanedge_s *n = p->next;
-		while (n != NULL && n->top < drawedge->top)
+		while (n != NULL && n->top < DRAWEDGE_TOP(drawedge))
 		{
 			n = n->next;
 			p = p->next;
 		}
 		scanedge_p->next = p->next;
 		p->next = scanedge_p;
-		scanedge_p->top = drawedge->top;
+		scanedge_p->top = DRAWEDGE_TOP(drawedge);
 		scanedge_p->drawedge = drawedge;
 		scanedge_p++;
 	}
@@ -179,6 +192,7 @@ enum
 			      needed to gen enter/exit points */
 };
 
+static int backwards;
 static double *clip_v1;
 static double *clip_v2;
 static double _clip_1[3];
@@ -204,6 +218,8 @@ FillDrawEdge (struct drawedge_s *de)
 	double local[3], out[3];
 	double scale;
 
+	int runsdown;
+
 	Vec_Subtract (clip_v1, camera.pos, local);
 	Vec_Transform (camera.xform, local, out);
 	scale = camera.dist / out[2];
@@ -223,6 +239,7 @@ FillDrawEdge (struct drawedge_s *de)
 		v1_f = _v1;
 		u2_f = _u2;
 		v2_f = _v2;
+		runsdown = 1;
 	}
 	else
 	{
@@ -230,8 +247,8 @@ FillDrawEdge (struct drawedge_s *de)
 		v1_f = _v2;
 		u2_f = _u1;
 		v2_f = _v1;
+		runsdown = 0;
 	}
-
 
 	/* the pixel containment rule says an edge point exactly on the
 	 * center of a pixel vertically will be considered to cover that
@@ -239,7 +256,7 @@ FillDrawEdge (struct drawedge_s *de)
 	int v1_i = ceil (v1_f - 0.5);
 	int v2_i = floor (v2_f - 0.5);
 
-	if (v1_i == v2_i)
+	if (v1_i >= v2_i)
 	{
 		/* doesn't cross a pixel center vertically */
 		return 0;
@@ -252,38 +269,46 @@ FillDrawEdge (struct drawedge_s *de)
 		return 0;
 	}
 
+	if (v1_i < 0) //TODO: shouldn't happen, right? especially if shift viewangle inwards
+		v1_i = 0;
+
 	double du = (u2_f - u1_f) / (v2_f - v1_f);
 	de->u = (u1_f + du * (v1_i + 0.5 - v1_f)) * (1 << U_FRACBITS);
 	de->du = du * (1 << U_FRACBITS);
-	de->top = v1_i;
-	de->bottom = v2_i;
+	de->top = v1_i | (runsdown << 15);
+	de->bottom = v2_i | (runsdown << 15);
 
 	return 1;
 }
 
 
 static struct drawedge_s *
-NewExtraEdge (void)
+NewExtraEdge (int *isleft)
 {
 	if (extraedges_p == extraedges_end)
 		return NULL;
 	if (!FillDrawEdge(extraedges_p))
 		return NULL;
+	*isleft =	(DRAWEDGE_LEFT(extraedges_p) && !backwards) ||
+			(!DRAWEDGE_LEFT(extraedges_p) && backwards);
 	return extraedges_p++;
 }
 
 
 static struct drawedge_s *
-NewDrawEdge (void)
+NewCachedDrawEdge (int *isleft)
 {
 	if (drawedges_p == drawedges_end)
 		return NULL;
 	if (!FillDrawEdge(drawedges_p))
 		return NULL;
+	*isleft =	(DRAWEDGE_LEFT(drawedges_p) && !backwards) ||
+			(!DRAWEDGE_LEFT(drawedges_p) && backwards);
 	return drawedges_p++;
 }
 
 
+/* assumes vertices straddle the plane */
 static inline double *
 Intersect (	const double v1[3],
 		const double v2[3],
@@ -300,7 +325,7 @@ Intersect (	const double v1[3],
 
 
 static int
-ClipWithTB (const struct viewplane_s *p)
+ClipTB (const struct viewplane_s *p)
 {
 	double d1 = Vec_Dot (p->normal, clip_v1) - p->dist;
 	double d2 = Vec_Dot (p->normal, clip_v2) - p->dist;
@@ -339,7 +364,7 @@ ClipWithTB (const struct viewplane_s *p)
 
 
 static int
-DoSingleLeft (double d1, double d2)
+ClipL (double d1, double d2)
 {
 	if (d1 >= 0.0)
 	{
@@ -376,7 +401,7 @@ DoSingleLeft (double d1, double d2)
 
 
 static int
-DoSingleRight (double d1, double d2)
+ClipR (double d1, double d2)
 {
 	if (d1 >= 0.0)
 	{
@@ -421,14 +446,14 @@ ClipWithLR (int planemask)
 	double l_d2 = Vec_Dot (lp->normal, clip_v2) - lp->dist;
 
 	if ((planemask & VPLANE_LEFT_MASK) && !(planemask & VPLANE_RIGHT_MASK))
-		return DoSingleLeft (l_d1, l_d2);
+		return ClipL (l_d1, l_d2);
 
 	const struct viewplane_s *rp = &camera.vplanes[VPLANE_RIGHT];
 	double r_d1 = Vec_Dot (rp->normal, clip_v1) - rp->dist;
 	double r_d2 = Vec_Dot (rp->normal, clip_v2) - rp->dist;
 
 	if (!(planemask & VPLANE_LEFT_MASK) && (planemask & VPLANE_RIGHT_MASK))
-		return DoSingleRight (r_d1, r_d2);
+		return ClipR (r_d1, r_d2);
 
 	/* both active */
 
@@ -436,24 +461,26 @@ ClipWithLR (int planemask)
 		return CLIP_DOUBLE;
 
 	if (l_d1 >= 0.0 && l_d2 >= 0.0)
-		return DoSingleRight (r_d1, r_d2);
+		return ClipR (r_d1, r_d2);
 	else if (l_d1 < 0.0 && l_d2 < 0.0)
 	{
 		/* behind left vplane */
-		int st = DoSingleRight (r_d1, r_d2);
+		int st = ClipR (r_d1, r_d2);
 		if (st == CLIP_CHOPPED)
 			return CLIP_CHOPPED_BACK;
+		/* cacheable */
 		return CLIP_SINGLE;
 	}
 
 	if (r_d1 >= 0.0 && r_d2 >= 0.0)
-		return DoSingleLeft (l_d1, l_d2);
+		return ClipL (l_d1, l_d2);
 	else if (r_d1 < 0.0 && r_d2 < 0.0)
 	{
 		/* behind right vplane */
-		int st = DoSingleLeft (l_d1, l_d2);
+		int st = ClipL (l_d1, l_d2);
 		if (st == CLIP_CHOPPED)
 			return CLIP_CHOPPED_BACK;
+		/* cacheable */
 		return CLIP_SINGLE;
 	}
 
@@ -565,7 +592,10 @@ TryEdgeCache (int medgeidx)
 		cacheidx < (drawedges_p - drawedges) &&
 		drawedges[cacheidx].medgeidx == medgeidx)
 	{
-		EmitScanEdge (&drawedges[cacheidx]);
+		struct drawedge_s *de = &drawedges[cacheidx];
+		int isleft =	(DRAWEDGE_LEFT(de) && !backwards) ||
+				(!DRAWEDGE_LEFT(de) && backwards);
+		EmitScanEdge (de, isleft);
 		return 1;
 	}
 	return 0;
@@ -575,12 +605,12 @@ TryEdgeCache (int medgeidx)
 static void
 ProcessEnterExitEdge (double enter[3], double exit[3], int planemask)
 {
-	clip_v1 = enter;
-	clip_v2 = exit;
+	clip_v1 = exit;
+	clip_v2 = enter;
 
 	if (planemask & VPLANE_TOP_MASK)
 	{
-		if (ClipWithTB(&camera.vplanes[VPLANE_TOP]) == CLIP_SINGLE)
+		if (ClipTB(&camera.vplanes[VPLANE_TOP]) == CLIP_SINGLE)
 		{
 			/* fully behind top */
 			return;
@@ -591,7 +621,7 @@ ProcessEnterExitEdge (double enter[3], double exit[3], int planemask)
 
 	if (planemask & VPLANE_BOTTOM_MASK)
 	{
-		if (ClipWithTB(&camera.vplanes[VPLANE_BOTTOM]) == CLIP_SINGLE)
+		if (ClipTB(&camera.vplanes[VPLANE_BOTTOM]) == CLIP_SINGLE)
 		{
 			/* behind bottom */
 			return;
@@ -600,21 +630,25 @@ ProcessEnterExitEdge (double enter[3], double exit[3], int planemask)
 
 	/* chopped or not, it's visible */
 
-	struct drawedge_s *de = NewExtraEdge ();
+	int isleft;
+	struct drawedge_s *de = NewExtraEdge (&isleft);
 	if (de != NULL)
-		EmitScanEdge (de);
+		EmitScanEdge (de, isleft);
 }
 
 
 static void
 GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 {
-	struct scanedge_s _spool[MAX_POLY_DRAWEDGES];
-	scanedges = scanedge_p = _spool;
-	scanedge_end = _spool + (sizeof(_spool) / sizeof(_spool[0]));
-	scanedge_head.drawedge = NULL;
-	scanedge_head.next = NULL;
-	scanedge_head.top = -9999;
+	struct scanedge_s _scanpool[MAX_POLY_DRAWEDGES];
+	scanedges = scanedge_p = _scanpool;
+	scanedge_end = _scanpool + (sizeof(_scanpool) / sizeof(_scanpool[0]));
+	scanedges_l.drawedge = NULL;
+	scanedges_l.next = NULL;
+	scanedges_l.top = -9999;
+	scanedges_r.drawedge = NULL;
+	scanedges_r.next = NULL;
+	scanedges_r.top = -9999;
 
 	struct drawedge_s _extra[MAX_POLY_DRAWEDGES];
 	extraedges = extraedges_p = _extra;
@@ -633,6 +667,7 @@ GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 
 		if (medgeidx < 0)
 		{
+			backwards = 1;
 			medgeidx = -medgeidx - 1;
 			if (TryEdgeCache(medgeidx))
 				continue;
@@ -642,6 +677,7 @@ GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 		}
 		else
 		{
+			backwards = 0;
 			if (TryEdgeCache(medgeidx))
 				continue;
 			medge = &map.edges[medgeidx];
@@ -673,7 +709,7 @@ GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 
 		if (planemask & VPLANE_TOP_MASK)
 		{
-			t_status = ClipWithTB (&camera.vplanes[VPLANE_TOP]);
+			t_status = ClipTB (&camera.vplanes[VPLANE_TOP]);
 			if (t_status == CLIP_SINGLE && lr_status == CLIP_FRONT)
 			{
 				/* can cache as non-visible this frame */
@@ -684,7 +720,7 @@ GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 
 		if (planemask & VPLANE_BOTTOM_MASK)
 		{
-			b_status = ClipWithTB (&camera.vplanes[VPLANE_BOTTOM]);
+			b_status = ClipTB (&camera.vplanes[VPLANE_BOTTOM]);
 			if (b_status == CLIP_SINGLE && lr_status == CLIP_FRONT)
 			{
 				/* can cache as non-visible this frame */
@@ -699,18 +735,20 @@ GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 		{
 			/* unclipped edge; cacheable */
 			struct drawedge_s *de;
-			if ((de = NewDrawEdge()) != NULL)
+			int isleft;
+			if ((de = NewCachedDrawEdge(&isleft)) != NULL)
 			{
 				medge->cachenum = de - drawedges;
 				de->medgeidx = medgeidx;
-				EmitScanEdge (de);
+				EmitScanEdge (de, isleft);
 			}
 		}
 		else
 		{
-			struct drawedge_s *de = NewExtraEdge ();
+			int isleft;
+			struct drawedge_s *de = NewExtraEdge (&isleft);
 			if (de != NULL)
-				EmitScanEdge (de);
+				EmitScanEdge (de, isleft);
 		}
 	}
 
@@ -906,3 +944,83 @@ DrawSpan (struct drawspan_s *s, int c)
  *   Loop is done when we hit/pass bottom of both left/right edges and
  *   scanedge list is empty.
  */
+
+#if 0
+	struct scanedge_s *nextedge = scanedge_head.next;
+	int l_u = 0x7fffffff;
+	int l_du = 0;
+	int l_bot = -999999;
+	int r_u = 0x80000000;
+	int r_du = 0;
+	int r_bot = -999999;
+	int bot = -999999;
+	int v = nextedge->top;
+	nextedge->next->drawedge->top = nextedge->drawedge->top;
+	while (!(nextedge == NULL && v > bot))
+	{
+		if (nextedge != NULL && v >= nextedge->top)
+		{
+			struct scanedge_s *se = nextedge;
+			nextedge = nextedge->next;
+
+			if (nextedge != NULL && v >= nextedge->top)
+			{
+				struct scanedge_s *ee = nextedge;
+				nextedge = nextedge->next;
+
+				if (se->drawedge->u < ee->drawedge->u)
+				{
+					l_u = se->drawedge->u;
+					l_du = se->drawedge->du;
+					l_bot = se->drawedge->bottom;
+					r_u = ee->drawedge->u;
+					r_du = ee->drawedge->du;
+					r_bot = ee->drawedge->bottom;
+				}
+				else if (se->drawedge->u > ee->drawedge->u)
+				{
+					r_u = se->drawedge->u;
+					r_du = se->drawedge->du;
+					r_bot = se->drawedge->bottom;
+					l_u = ee->drawedge->u;
+					l_du = ee->drawedge->du;
+					l_bot = ee->drawedge->bottom;
+				}
+				else
+				{
+					R_Die ("2 edges start at same u");
+				}
+				if (se->drawedge->bottom > bot)
+					bot = se->drawedge->bottom;
+				if (ee->drawedge->bottom > bot)
+					bot = ee->drawedge->bottom;
+			}
+			else
+			{
+				if (v > l_bot)
+				{
+					l_u = se->drawedge->u;
+					l_du = se->drawedge->du;
+					l_bot = se->drawedge->bottom;
+				}
+				else if (v > r_bot)
+				{
+					r_u = se->drawedge->u;
+					r_du = se->drawedge->du;
+					r_bot = se->drawedge->bottom;
+				}
+				else
+					R_Die ("unexpected edge");
+				if (se->drawedge->bottom > bot)
+					bot = se->drawedge->bottom;
+			}
+			//TODO: pre-adjust l_u, r_u so all that's needed is a shift down
+			// de->u += ((1 << 20) / 2) - 1;
+		}
+		if (l_u <= r_u)
+			R_Span_ClipAndEmit (v, l_u >> U_FRACBITS, r_u >> U_FRACBITS);
+		l_u += l_du;
+		r_u += r_du;
+		v++;
+	}
+#endif

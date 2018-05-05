@@ -132,6 +132,8 @@ CalcViewPlanes (void)
 	struct viewplane_s *p;
 	double ang;
 
+	//TODO: move planes inward a quarter-pixel to help w/ roundoff?
+
 	/* view to world transformation matrix */
 	Vec_AnglesMatrix (camera.angles, cam2world, "zyx");
 
