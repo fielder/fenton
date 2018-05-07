@@ -7,7 +7,6 @@
 #include "vec.h"
 #include "render.h"
 
-char * const vplane_names[4] = { "left", "right", "top", "bottom" };
 static const double fov_x = 90.0;
 
 struct camera_s camera;

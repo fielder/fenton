@@ -53,7 +53,6 @@ struct camera_s
 	struct viewplane_s vplanes[4];
 };
 
-extern char * const vplane_names[4];
 extern struct camera_s camera;
 extern unsigned int r_framenum;
 
@@ -74,6 +73,27 @@ R_Refresh (void);
 
 extern void
 R_Die (const char *msg);
+
+/* surface draw to framebuffer */
+
+struct drawsurf_s
+{
+	struct drawspan_s *spans;
+
+	unsigned int msurfidx;
+
+	unsigned short numspans;
+
+	//TODO: texture mapping stuff
+
+	char pad[2]; /* align on 8-byte boundary */
+};
+
+extern struct drawsurf_s *surfs;
+extern struct drawsurf_s *surfs_p;
+
+extern void
+R_DrawSurfs (void);
 
 /* span stuff */
 

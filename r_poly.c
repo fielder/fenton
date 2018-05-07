@@ -37,19 +37,6 @@ struct drawedge_s
 
 #define U_FRACBITS 20
 
-struct drawsurf_s
-{
-	struct drawspan_s *spans;
-
-	unsigned int msurfidx;
-
-	unsigned short numspans;
-
-	//TODO: texture mapping stuff
-
-	char pad[2]; /* align on 8-byte boundary */
-};
-
 /* scanedges are ephemeral, only needed when scan-converting a poly's
  * emitedges to spans
  * scanedges are stored in a single list, sorted by top coord */
@@ -60,8 +47,8 @@ struct scanedge_s
 	int top;
 };
 
-static struct drawsurf_s *surfs = NULL;
-static struct drawsurf_s *surfs_p = NULL;
+struct drawsurf_s *surfs = NULL;
+struct drawsurf_s *surfs_p = NULL;
 static struct drawsurf_s *surfs_end = NULL;
 
 static struct drawedge_s *drawedges = NULL;
@@ -81,43 +68,16 @@ static struct scanedge_s *scanedge_end = NULL;
 
 
 static void
-DebugDrawEdge (struct drawedge_s *de, int c)
-{
-	int y, u;
-	for (y = DRAWEDGE_TOP(de), u = de->u; y <= DRAWEDGE_BOT(de); y++, u += de->du)
-	{
-		int x = u >> U_FRACBITS;
-		if (y >= 0 && y < video.h && x >= 0 && x < video.w)
-		{
-			if (video.bpp == 16)
-				((unsigned short *)video.rows[y])[x] = (unsigned short)c;
-			else
-				((unsigned int *)video.rows[y])[x] = (unsigned int)c;
-		}
-	}
-}
-
-
-static void
-DebugDrawMapEdge (int e)
-{
-	if (e < 0)
-		e = -e - 1;
-	R_3DLine (	map.vertices[map.edges[e].v[0]].xyz,
-			map.vertices[map.edges[e].v[1]].xyz,
-			-1);
-}
-
-
-static void
 ProcessScanEdges (void)
 {
 	struct scanedge_s *se_l = scanedges_l.next;
 	struct scanedge_s *se_r = scanedges_r.next;
+#if 1
 	if (se_l == NULL)
 		R_Die ("no L scanedges");
 	if (se_r == NULL)
 		R_Die ("no R scanedges");
+#endif
 	int v = (se_l->top < se_r->top) ? se_l->top : se_r->top;
 	int bot =	(DRAWEDGE_BOT(se_l->drawedge) > DRAWEDGE_BOT(se_r->drawedge)) ?
 			DRAWEDGE_BOT(se_l->drawedge) :
@@ -640,19 +600,8 @@ ProcessEnterExitEdge (double enter[3], double exit[3], int planemask)
 static void
 GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 {
-	struct scanedge_s _scanpool[MAX_POLY_DRAWEDGES];
-	scanedges = scanedge_p = _scanpool;
-	scanedge_end = _scanpool + (sizeof(_scanpool) / sizeof(_scanpool[0]));
-	scanedges_l.drawedge = NULL;
-	scanedges_l.next = NULL;
-	scanedges_l.top = -9999;
-	scanedges_r.drawedge = NULL;
-	scanedges_r.next = NULL;
-	scanedges_r.top = -9999;
-
-	struct drawedge_s _extra[MAX_POLY_DRAWEDGES];
-	extraedges = extraedges_p = _extra;
-	extraedges_end = _extra + (sizeof(_extra) / sizeof(_extra[0]));
+	scanedge_p = scanedges;
+	extraedges_p = extraedges;
 
 	enter_left = NULL;
 	exit_left = NULL;
@@ -776,7 +725,7 @@ GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 
 	if (scanedge_p == scanedges)
 	{
-		/* winding not visible */
+		/* no scanedges generated; winding not visible */
 		return;
 	}
 
@@ -784,13 +733,8 @@ GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 	{
 		/* possible to gen only 1 scanedge due to math
 		 * imprecision
-		 * camera.pos[0] = 50.452744;
-		 * camera.pos[1] = 20.029897;
-		 * camera.pos[2] = 42.966270;
-		 * camera.angles[0] = 0.198413;
-		 * camera.angles[1] = 5.419247;
-		 * camera.angles[2] = 0.000000;
-		*/
+		 * pos = 50.452744 20.029897 42.966270
+		 * angles = 0.198413 5.419247 0.000000 */
 		return;
 	}
 
@@ -798,35 +742,43 @@ GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 }
 
 
-static void
-ProcessSurf (struct msurface_s *msurf, int planemask)
-{
-	if (surfs_p != surfs_end)
-	{
-		struct drawspan_s *firstspan = r_spans;
-		GenSpansForEdgeLoop (msurf->edgeloop_start, msurf->numedges, planemask);
-		if (r_spans != firstspan)
-		{
-			/* spans were created, surf is visible */
-			surfs_p->spans = firstspan;
-			surfs_p->numspans = r_spans - firstspan;
-			surfs_p->msurfidx = msurf - map.surfaces;
-			//TODO: texturing n' stuff
-			surfs_p++;
-		}
-	}
-}
-
-
 void
 R_GenSpansForSurfaces (unsigned int first, int count, int planemask, int backface_check)
 {
+	struct scanedge_s _scanpool[MAX_POLY_DRAWEDGES];
+	scanedges = _scanpool;
+	scanedge_end = _scanpool + (sizeof(_scanpool) / sizeof(_scanpool[0]));
+	scanedges_l.drawedge = NULL;
+	scanedges_l.next = NULL;
+	scanedges_l.top = -9999;
+	scanedges_r.drawedge = NULL;
+	scanedges_r.next = NULL;
+	scanedges_r.top = -9999;
+
+	struct drawedge_s _extra[MAX_POLY_DRAWEDGES];
+	extraedges = _extra;
+	extraedges_end = _extra + (sizeof(_extra) / sizeof(_extra[0]));
+
 	while (count-- > 0)
 	{
 		struct msurface_s *msurf = &map.surfaces[first++];
-
 		if (!backface_check || Map_DistFromSurface(msurf, camera.pos) >= SURF_BACKFACE_EPSILON)
-			ProcessSurf (msurf, planemask);
+		{
+			if (surfs_p != surfs_end)
+			{
+				struct drawspan_s *firstspan = r_spans;
+				GenSpansForEdgeLoop (msurf->edgeloop_start, msurf->numedges, planemask);
+				if (r_spans != firstspan)
+				{
+					/* spans were created, surf is visible */
+					surfs_p->spans = firstspan;
+					surfs_p->numspans = r_spans - firstspan;
+					surfs_p->msurfidx = msurf - map.surfaces;
+					//TODO: texturing n' stuff
+					surfs_p++;
+				}
+			}
+		}
 	}
 }
 
@@ -840,12 +792,6 @@ R_CheckPortalVisibility (struct mportal_s *portal, int planemask, int reversewin
 	// the only side-effect of this function will be emitted edges
 	//TODO: ...
 	return 0;
-}
-
-
-void
-R_Surf_DrawDebug (void)
-{
 }
 
 
@@ -885,24 +831,6 @@ ClampU (int u)
 
 int color = ((uintptr_t)&map.surfaces[drawsurf->msurfidx] >> 4) & 0xffffff;
 
-static void
-DrawSpan (struct drawspan_s *s, int c)
-{
-	if (video.bpp == 16)
-	{
-		unsigned short *dest = (unsigned short *)video.rows[s->v] + s->u;
-		unsigned short *end = dest + s->len;
-		while (dest != end)
-			*dest++ = c;
-	}
-	else
-	{
-		unsigned int *dest = (unsigned int *)video.rows[s->v] + s->u;
-		unsigned int *end = dest + s->len;
-		while (dest != end)
-			*dest++ = c;
-	}
-}
 #endif
 
 /*
@@ -1023,4 +951,35 @@ DrawSpan (struct drawspan_s *s, int c)
 		r_u += r_du;
 		v++;
 	}
+#endif
+
+
+#if 0
+static void
+DebugDrawMapEdge (int e)
+{
+	if (e < 0)
+		e = -e - 1;
+	R_3DLine (	map.vertices[map.edges[e].v[0]].xyz,
+			map.vertices[map.edges[e].v[1]].xyz,
+			-1);
+}
+#endif
+#if 0
+static void
+DebugDrawEdge (struct drawedge_s *de, int c)
+{
+	int y, u;
+	for (y = DRAWEDGE_TOP(de), u = de->u; y <= DRAWEDGE_BOT(de); y++, u += de->du)
+	{
+		int x = u >> U_FRACBITS;
+		if (y >= 0 && y < video.h && x >= 0 && x < video.w)
+		{
+			if (video.bpp == 16)
+				((unsigned short *)video.rows[y])[x] = (unsigned short)c;
+			else
+				((unsigned int *)video.rows[y])[x] = (unsigned int)c;
+		}
+	}
+}
 #endif
