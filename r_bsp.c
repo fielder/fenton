@@ -161,13 +161,5 @@ R_DrawWorld (void)
 	else
 		/* no geometry */ ;
 
-#if 0
-	if (1)
-	{
-		if (map.num_surfaces > 0)
-			R_SimpleDrawPoly ((double *)map.vertices, map.num_vertices, 0xffffffff);
-	}
-#endif
-
 	R_DrawSurfs ();
 }

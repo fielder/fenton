@@ -10,6 +10,42 @@
 #include "map.h"
 #include "render.h"
 
+/*
+ * A chopped edge is never cached.
+ * Clip against LR first
+ *   If LR are not active, skip LR clipping altogether. There are no
+ *     enter/exit points and no extra edges created in this case.
+ *   Enter/exit points should be saved when clipping against LR
+ *   If only 1 LR vplane is active, edges behind it can be cached as
+ *     non-visible.
+ *   If both LR are active, edges behind one vplane must still be
+ *     clipped against the other vplane as it could contribute to that
+ *     vplane's enter/exit points.
+ *   If both are active, edge is unchopped, and it's behind 1 or both LR
+ *     vplanes, cache as non-visible.
+ *   If an enter/exit point is generated, BOTH enter and exit points
+ *     must be created. Die & debug if only an enter or only an exit was
+ *     made.
+ * If an edge is unchopped by LR, and rejected by TB, cache as
+ *   non-visible
+ * After LR, clip against TB
+ *   If TB are not active, skip
+ * After edges are run through, clip extra LR edges against TB and
+ *   emit. Emitted extra LR edges are never cached.
+ * When projecting and emitting, don't emit edges that are only 1 pixel
+ *   high
+ * If <= 1 edges are emitted, winding is not visible.
+ * 1 emitted edge is possible due to math imprecision
+ *
+ * Span emitting is done by a loop working on l_u,l_du,l_top,l_bot,
+ *   r_u,r_du,r_top,r_bot variables. Keep an eye on the upcoming edge
+ *   to be popped.
+ *   Loop is done when we hit/pass bottom of both left/right edges and
+ *   scanedge list is empty.
+ *   First L and R edges *should* start on the same v. But, math
+ *   sometimes leads to odd cases that need to be patched up.
+ */
+
 #define MAX_EMITEDGES 65535
 
 #define MAX_POLY_DRAWEDGES 32
@@ -79,6 +115,27 @@ ProcessScanEdges (void)
 		R_Die ("no R scanedges");
 #endif
 	int v = (se_l->top < se_r->top) ? se_l->top : se_r->top;
+	if (v == 0)
+	{
+		/* math imprecision, and our vertical containment rules,
+		 * can cause a missing scanline when a poly's vertex
+		 * lies just on the top vplane
+		 * pos = -5.1768 5.49495 -18.2086
+		 * angles = 0.198413 0.343612 0
+		*/
+		if (se_l->top != 0)
+		{
+			se_l->drawedge->u += se_l->drawedge->du * (0 - se_l->top);
+			se_l->top = 0;
+			se_l->drawedge->top &= 0x8000;
+		}
+		else if (se_r->top != 0)
+		{
+			se_r->drawedge->u += se_r->drawedge->du * (0 - se_r->top);
+			se_r->top = 0;
+			se_r->drawedge->top &= 0x8000;
+		}
+	}
 	int bot =	(DRAWEDGE_BOT(se_l->drawedge) > DRAWEDGE_BOT(se_r->drawedge)) ?
 			DRAWEDGE_BOT(se_l->drawedge) :
 			DRAWEDGE_BOT(se_r->drawedge);
@@ -91,9 +148,9 @@ ProcessScanEdges (void)
 		if (se_l != NULL && v >= se_l->top)
 		{
 			l_u = se_l->drawedge->u;
+			/* pre-adjust so a simple shift down maintains containment rule */
+			l_u += (1 << U_FRACBITS) / 2 - 1;
 			l_du = se_l->drawedge->du;
-//TODO: pre-adjust l_u, r_u so all that's needed is a shift down
-// de->u += ((1 << 20) / 2) - 1;
 			if (DRAWEDGE_BOT(se_l->drawedge) > bot)
 				bot = DRAWEDGE_BOT(se_l->drawedge);
 			se_l = se_l->next;
@@ -101,9 +158,9 @@ ProcessScanEdges (void)
 		if (se_r != NULL && v >= se_r->top)
 		{
 			r_u = se_r->drawedge->u;
+			/* pre-adjust so a simple shift down maintains containment rule */
+			r_u -= (1 << U_FRACBITS) / 2;
 			r_du = se_r->drawedge->du;
-//TODO: pre-adjust l_u, r_u so all that's needed is a shift down
-// de->u += ((1 << 20) / 2) - 1;
 			if (DRAWEDGE_BOT(se_r->drawedge) > bot)
 				bot = DRAWEDGE_BOT(se_r->drawedge);
 			se_r = se_r->next;
@@ -149,7 +206,7 @@ enum
 	CLIP_DOUBLE, /* behind both L and R */
 	CLIP_FRONT, /* fully in front of plane */
 	CLIP_CHOPPED_BACK, /* chopped by a LR plane, but not visible;
-			      needed to gen enter/exit points */
+				needed to gen enter/exit points */
 };
 
 static int backwards;
@@ -210,6 +267,13 @@ FillDrawEdge (struct drawedge_s *de)
 		runsdown = 0;
 	}
 
+	/* math imprecision sometimes results in nearly-horizontal
+	 * emitted edges just above or just below the screen */
+	if (v2_f < 0.5)
+		return 0;
+	if (v1_f > video.h - 0.5)
+		return 0;
+
 	/* the pixel containment rule says an edge point exactly on the
 	 * center of a pixel vertically will be considered to cover that
 	 * pixel */
@@ -222,15 +286,8 @@ FillDrawEdge (struct drawedge_s *de)
 		return 0;
 	}
 
-	if (v2_i < 0 || v1_i >= video.h)
-	{
-		/* math imprecision sometimes results in nearly-horizontal
-		 * emitted edges just above or just below the screen */
-		return 0;
-	}
-
 	if (v1_i < 0) //TODO: shouldn't happen, right? especially if shift viewangle inwards
-		v1_i = 0;
+		R_Die ("top vertex above screen");//v1_i = 0;
 
 	double du = (u2_f - u1_f) / (v2_f - v1_f);
 	de->u = (u1_f + du * (v1_i + 0.5 - v1_f)) * (1 << U_FRACBITS);
@@ -600,6 +657,7 @@ ProcessEnterExitEdge (double enter[3], double exit[3], int planemask)
 static void
 GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 {
+//TODO: pass in scanedges & extraedges
 	scanedge_p = scanedges;
 	extraedges_p = extraedges;
 
@@ -811,149 +869,6 @@ R_Surf_BeginFrame (void *surfbuf, int surfbufsize, void *edgebuf, int edgebufsiz
 }
 
 
-/* ================================================================== */
-/* ================================================================== */
-/* ================================================================== */
-
-
-#if 0
-old junk
-
-static int
-ClampU (int u)
-{
-	if (u < 0)
-		return 0;
-	if (u >= video.w * (1<<20))
-		return video.w * (1<<20) - 1;
-	return u;
-}
-
-int color = ((uintptr_t)&map.surfaces[drawsurf->msurfidx] >> 4) & 0xffffff;
-
-#endif
-
-/*
- * A chopped edge is never cached.
- * Clip against LR first
- *   If LR are not active, skip LR clipping altogether. There are no
- *     enter/exit points and no extra edges created in this case.
- *   Enter/exit points should be saved when clipping against LR
- *   If only 1 LR vplane is active, edges behind it can be cached as
- *     non-visible.
- *   If both LR are active, edges behind one vplane must still be
- *     clipped against the other vplane as it could contribute to that
- *     vplane's enter/exit points.
- *   If both are active, edge is unchopped, and it's behind 1 or both LR
- *     vplanes, cache as non-visible.
- *   If an enter/exit point is generated, BOTH enter and exit points
- *     must be created. Die & debug if only an enter or only an exit was
- *     made.
- * If an edge is unchopped by LR, and rejected by TB, cache as
- *   non-visible
- * After LR, clip against TB
- *   If TB are not active, skip
- * After edges are run through, clip extra LR edges against TB and
- *   emit. Emitted extra LR edges are never cached.
- * When projecting and emitting, don't emit edges that are only 1 pixel
- *   high
- * If zero edges are emitted, winding is not visible.
- * If only 1 edge emitted, die and debug. Need at least 2. 2 because
- *   we ignore horizontal edges. eg: simple square creates only 2
- *   vertical edges.
- *
- * Emitted edges are stored on a single list, sorted by edge's top v.
- * When adding to list, start searching at bottom as it's more likely
- *   a quick insert.
- * Span emitting is done by a loop working on l_u,l_du,l_top,l_bot,
- *   r_u,r_du,r_top,r_bot variables. Keep an eye on the upcoming edge
- *   to be popped. When next edge is needed, determine whether it's left
- *   or right by checking it's u.
- *   Loop is done when we hit/pass bottom of both left/right edges and
- *   scanedge list is empty.
- */
-
-#if 0
-	struct scanedge_s *nextedge = scanedge_head.next;
-	int l_u = 0x7fffffff;
-	int l_du = 0;
-	int l_bot = -999999;
-	int r_u = 0x80000000;
-	int r_du = 0;
-	int r_bot = -999999;
-	int bot = -999999;
-	int v = nextedge->top;
-	nextedge->next->drawedge->top = nextedge->drawedge->top;
-	while (!(nextedge == NULL && v > bot))
-	{
-		if (nextedge != NULL && v >= nextedge->top)
-		{
-			struct scanedge_s *se = nextedge;
-			nextedge = nextedge->next;
-
-			if (nextedge != NULL && v >= nextedge->top)
-			{
-				struct scanedge_s *ee = nextedge;
-				nextedge = nextedge->next;
-
-				if (se->drawedge->u < ee->drawedge->u)
-				{
-					l_u = se->drawedge->u;
-					l_du = se->drawedge->du;
-					l_bot = se->drawedge->bottom;
-					r_u = ee->drawedge->u;
-					r_du = ee->drawedge->du;
-					r_bot = ee->drawedge->bottom;
-				}
-				else if (se->drawedge->u > ee->drawedge->u)
-				{
-					r_u = se->drawedge->u;
-					r_du = se->drawedge->du;
-					r_bot = se->drawedge->bottom;
-					l_u = ee->drawedge->u;
-					l_du = ee->drawedge->du;
-					l_bot = ee->drawedge->bottom;
-				}
-				else
-				{
-					R_Die ("2 edges start at same u");
-				}
-				if (se->drawedge->bottom > bot)
-					bot = se->drawedge->bottom;
-				if (ee->drawedge->bottom > bot)
-					bot = ee->drawedge->bottom;
-			}
-			else
-			{
-				if (v > l_bot)
-				{
-					l_u = se->drawedge->u;
-					l_du = se->drawedge->du;
-					l_bot = se->drawedge->bottom;
-				}
-				else if (v > r_bot)
-				{
-					r_u = se->drawedge->u;
-					r_du = se->drawedge->du;
-					r_bot = se->drawedge->bottom;
-				}
-				else
-					R_Die ("unexpected edge");
-				if (se->drawedge->bottom > bot)
-					bot = se->drawedge->bottom;
-			}
-			//TODO: pre-adjust l_u, r_u so all that's needed is a shift down
-			// de->u += ((1 << 20) / 2) - 1;
-		}
-		if (l_u <= r_u)
-			R_Span_ClipAndEmit (v, l_u >> U_FRACBITS, r_u >> U_FRACBITS);
-		l_u += l_du;
-		r_u += r_du;
-		v++;
-	}
-#endif
-
-
 #if 0
 static void
 DebugDrawMapEdge (int e)
@@ -964,8 +879,7 @@ DebugDrawMapEdge (int e)
 			map.vertices[map.edges[e].v[1]].xyz,
 			-1);
 }
-#endif
-#if 0
+
 static void
 DebugDrawEdge (struct drawedge_s *de, int c)
 {

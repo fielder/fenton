@@ -319,6 +319,15 @@ RunInput (void)
 		camera.angles[1] = 5.419247;
 		camera.angles[2] = 0.000000;
 	}
+	if (input.key.release[FK_F5])
+	{
+		camera.pos[0] = -5.1768;
+		camera.pos[1] = 5.49495;
+		camera.pos[2] = -18.2086;
+		camera.angles[0] = 0.198413;
+		camera.angles[1] = 0.343612;
+		camera.angles[2] = 0;
+	}
 
 	if (input.key.release['z'])
 		r_gspan_debug = !r_gspan_debug;
