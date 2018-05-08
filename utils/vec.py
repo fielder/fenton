@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import math
 import operator
 import collections
@@ -16,18 +18,13 @@ Plane = collections.namedtuple("Plane", ["normal", "dist"])
 
 
 def _isScalar(x):
-    return isinstance(x, float) or \
-           isinstance(x, int) or \
-           isinstance(x, long) or \
-           isinstance(x, complex)
+    return isinstance(x, (float, int, complex))
 
 def _isXYZ(x):
-    return isinstance(x, Vec3) or \
-           ((isinstance(x, tuple) or isinstance(x, list)) and len(x) == 3)
+    return isinstance(x, (tuple, list, Vec3)) and len(x) == 3
 
 def _isXY(x):
-    return isinstance(x, Vec2) or \
-           ((isinstance(x, tuple) or isinstance(x, list)) and len(x) == 2)
+    return isinstance(x, (tuple, list, Vec2)) and len(x) == 2
 
 def _floatVals(vals):
     return tuple((float(v) for v in vals))
@@ -58,21 +55,18 @@ def _parseVertsString(s):
         elif len(vals) == 3:
             v = Vec3(vals[0], vals[1], vals[2])
         else:
-            raise ValueError("invalid vertex \"%s\"" % str(vals))
+            raise ValueError("invalid vertex \"{}\"".format(vals))
 
         verts.append(v)
 
     return verts
 
 def classifyDist(d):
-    if math.fabs(d) < SIDE_EPSILON:
-        return SIDE_ON
-    elif d < 0.0:
+    if d < -SIDE_EPSILON:
         return SIDE_BACK
-    elif d > 0.0:
+    elif d > SIDE_EPSILON:
         return SIDE_FRONT
-
-    raise Exception("shouldn't happen")
+    return SIDE_ON
 
 def lineFrac(a, b, frac):
     return a + (b - a) * frac
@@ -144,7 +138,7 @@ def splitPoly(verts, normal, dist):
                 frontv.append(mid)
                 backv.append(mid)
         else:
-            raise Exception("invalid side %s" % str(side))
+            raise Exception("invalid side {}".format(side))
 
     return (frontv, backv)
 
@@ -210,10 +204,8 @@ class Vec3(object):
     """
 
     def __init__(self, *args):
-        self._xyz = (0.0, 0.0, 0.0)
-
         if len(args) == 0:
-            pass
+            self._xyz = (0.0, 0.0, 0.0)
         elif _isXYZ(args):
             # initialized with individual x,y,z components
             self._xyz = _floatVals(args)
@@ -222,15 +214,15 @@ class Vec3(object):
             if _isXYZ(a):
                 self._xyz = _floatVals(a)
             else:
-                raise ValueError("invalid value \"%s\"" % str(a))
+                raise ValueError("invalid value \"{}\"".format(a))
         else:
-            raise ValueError("invalid value \"%s\"" % str(args))
+            raise ValueError("invalid value \"{}\"".format(args))
 
     def __repr__(self):
         x = repr(self._xyz[0])
         y = repr(self._xyz[1])
         z = repr(self._xyz[2])
-        return "( %s %s %s )" % (x, y, z)
+        return "( {} {} {} )".format(x, y, z)
 
     def __len__(self):
         return len(self._xyz)
@@ -288,7 +280,7 @@ class Vec3(object):
                         op(self._xyz[1], other[1]),
                         op(self._xyz[2], other[2]))
         else:
-            raise TypeError("invalid operand %s" % type(other))
+            raise TypeError("invalid operand for {}".format(other))
 
     def __add__(self, other):
         return self._binaryop(other, operator.add)
@@ -347,7 +339,7 @@ class Poly3D(object):
                  isinstance(other, tuple):
                 self._verts = [Vec3(o) for o in other]
             else:
-                raise ValueError("invalid value \"%s\"" % str(other))
+                raise ValueError("invalid value \"{}\"".format(other))
 
         self._need_recalc = True
 
@@ -427,7 +419,7 @@ class Poly3D(object):
                 best = math.fabs(val)
                 majoraxis = idx
         if majoraxis is None:
-            raise Exception("no major axis for plane %s" % str(plane))
+            raise Exception("no major axis for plane {}".format(plane))
 
         if majoraxis == 0:
             up = Vec3(0, 1, 0)
@@ -480,7 +472,7 @@ class Bounds3D(object):
                 # init from a bounds, poly, or a point
                 other, = args
             else:
-                raise ValueError("invalid value \"%s\"" % str(args))
+                raise ValueError("invalid value \"{}\"".format(args))
             self.update(other)
 
     def clear(self):
@@ -499,7 +491,7 @@ class Bounds3D(object):
             self.mins = _minVec(self.mins, other)
             self.maxs = _maxVec(self.maxs, other)
         else:
-            raise ValueError("invalid value \"%s\"" % str(other))
+            raise ValueError("invalid value \"{}\"".format(other))
 
     def __add__(self, other):
         ret = Bounds3D(self)
@@ -608,10 +600,8 @@ class Vec2(object):
     """
 
     def __init__(self, *args):
-        self._xy = (0.0, 0.0)
-
         if len(args) == 0:
-            pass
+            self._xy = (0.0, 0.0)
         elif _isXY(args):
             # initialized with individual x,y components
             self._xy = _floatVals(args)
@@ -620,14 +610,14 @@ class Vec2(object):
             if _isXY(a):
                 self._xy = _floatVals(a)
             else:
-                raise ValueError("invalid value \"%s\"" % str(a))
+                raise ValueError("invalid value \"{}\"".format(a))
         else:
-            raise ValueError("invalid value \"%s\"" % str(args))
+            raise ValueError("invalid value \"{}\"".format(args))
 
     def __repr__(self):
         x = repr(self._xy[0])
         y = repr(self._xy[1])
-        return "( %s %s )" % (x, y)
+        return "( {} {} )".format(x, y)
 
     def __len__(self):
         return len(self._xy)
@@ -674,7 +664,7 @@ class Vec2(object):
             return Vec2(op(self._xy[0], other[0]),
                         op(self._xy[1], other[1]))
         else:
-            raise TypeError("invalid operand %s" % type(other))
+            raise TypeError("invalid operand for {}".format(other))
 
     def __add__(self, other):
         return self._binaryop(other, operator.add)
@@ -729,7 +719,7 @@ class Line2D(object):
             # from another line
             self._verts = args[0]._verts
         else:
-            raise ValueError("invalid values \"%s\"" % str(args))
+            raise ValueError("invalid values \"{}\"".format(args))
 
         self._need_recalc = True
 
@@ -768,7 +758,7 @@ class Line2D(object):
         elif item == 1:
             self._verts = (self._verts[0], Vec2(val))
         else:
-            raise ValueError("invalid index %s" % item)
+            raise ValueError("invalid index {}".format(item))
         self._need_recalc = True
 
     @property
@@ -819,7 +809,7 @@ class Line2D(object):
             p = other[0] + (other.normal * 10.0)
             side = self.pointSide(p)
             if side == SIDE_ON:
-                raise Exception("side check failed %s, other is %s" % (self, other))
+                raise Exception("side check failed {}, other is {}".format(self, other))
 
         return side
 
@@ -864,7 +854,7 @@ class Line2D(object):
         elif side == SIDE_CROSS:
             front, back = self._splitCrossingLine(other)
         else:
-            raise Exception("unknown side %s" % str(side))
+            raise Exception("unknown side {}".format(side))
 
         return (front, back, on)
 
@@ -905,7 +895,7 @@ class Poly2D(object):
                  isinstance(other, tuple):
                 self._verts = [Vec2(o) for o in other]
             else:
-                raise ValueError("invalid value \"%s\"" % str(other))
+                raise ValueError("invalid value \"{}\"".format(other))
 
     def __repr__(self):
         return _reprVerts(self._verts)

@@ -10,6 +10,8 @@
 #include "map.h"
 #include "render.h"
 
+//TODO: figure out if drawedge idx 0 should still be avoided
+
 /*
  * A chopped edge is never cached.
  * Clip against LR first
@@ -752,9 +754,10 @@ GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 		}
 		else
 		{
+			/* cipped, un-cacheable */
+			struct drawedge_s *de;
 			int isleft;
-			struct drawedge_s *de = NewExtraEdge (&isleft);
-			if (de != NULL)
+			if ((de = NewExtraEdge (&isleft)) != NULL)
 				EmitScanEdge (de, isleft);
 		}
 	}

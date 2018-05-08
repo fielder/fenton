@@ -1,9 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import sys
 import os
 
-import mapgrab
+#FIXME
+#import mapgrab
 import vec
 
 
@@ -86,8 +87,9 @@ def _num(val):
 def makeNodes(mapdir):
     global _nodes
 
-    vertexes = mapgrab.loadTextVERTEXES(mapdir)
-    linedefs = mapgrab.loadTextLINEDEFS(mapdir)
+#FIXME
+#    vertexes = mapgrab.loadTextVERTEXES(mapdir)
+#    linedefs = mapgrab.loadTextLINEDEFS(mapdir)
 
     # Note we negate y-axis coordinates from the WAD to match our
     # coordinate system. Consequently, we must reverse the linedef
@@ -101,17 +103,17 @@ def makeNodes(mapdir):
 
     path = os.path.join(mapdir, "nodes%stxt" % os.path.extsep)
     with open(path, "wt") as fp:
-        fp.write("idx x1 y1 x2 y2 front_idx back_idx\n")
+        fp.write("# idx x1 y1 x2 y2 front_idx back_idx\n")
         for idx, n in enumerate(_nodes):
-            s = "%d" % idx
-            s += " %s %s" % (_num(n.line[0][0]), _num(n.line[0][1]))
-            s += " %s %s" % (_num(n.line[1][0]), _num(n.line[1][1]))
+            s = "{}".format(idx)
+            s += " {} {}".format(_num(n.line[0][0]), _num(n.line[0][1]))
+            s += " {} {}".format(_num(n.line[1][0]), _num(n.line[1][1]))
             if n.front is not None:
-                s += " %d" % n.front.idx
+                s += " {}".format(n.front.idx)
             else:
                 s += " \"leaf\""
             if n.back is not None:
-                s += " %d" % n.back.idx
+                s += " {}".format(n.back.idx)
             else:
                 s += " \"leaf\""
             s += "\n"
@@ -121,7 +123,7 @@ def makeNodes(mapdir):
 def main(argv):
     if len(argv) < 2:
         print "Calculate the node lines for a map"
-        print "usage: %s <map> ..." % argv[0]
+        print "usage: {} <map> ...".format(argv[0])
         sys.exit(0)
 
     for mapdir in argv[1:]:
