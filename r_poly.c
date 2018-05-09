@@ -649,6 +649,7 @@ ProcessEnterExitEdge (double enter[3], double exit[3], int planemask)
 
 	/* chopped or not, it's visible */
 
+	backwards = 0;
 	int isleft;
 	struct drawedge_s *de = NewExtraEdge (&isleft);
 	if (de != NULL)

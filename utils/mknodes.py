@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
 import sys
-import os
 
-#FIXME
-#import mapgrab
+import wadmap
+import wad
 import vec
 
+#FIXME: output node's original line; not chopped line
 
 class Choice(object):
     line = None
@@ -84,12 +84,11 @@ def _num(val):
     return str(val)
 
 
-def makeNodes(mapdir):
+def makeNodes(w, mapname):
     global _nodes
 
-#FIXME
-#    vertexes = mapgrab.loadTextVERTEXES(mapdir)
-#    linedefs = mapgrab.loadTextLINEDEFS(mapdir)
+    vertexes = list(wadmap.iterVertexes(wadmap.lumpForMap(w, mapname, "VERTEXES")))
+    linedefs = list(wadmap.iterLinedefs(wadmap.lumpForMap(w, mapname, "LINEDEFS")))
 
     # Note we negate y-axis coordinates from the WAD to match our
     # coordinate system. Consequently, we must reverse the linedef
@@ -101,33 +100,31 @@ def makeNodes(mapdir):
     _nodes = []
     recursiveBSP(lines)
 
-    path = os.path.join(mapdir, "nodes%stxt" % os.path.extsep)
-    with open(path, "wt") as fp:
-        fp.write("# idx x1 y1 x2 y2 front_idx back_idx\n")
-        for idx, n in enumerate(_nodes):
-            s = "{}".format(idx)
-            s += " {} {}".format(_num(n.line[0][0]), _num(n.line[0][1]))
-            s += " {} {}".format(_num(n.line[1][0]), _num(n.line[1][1]))
-            if n.front is not None:
-                s += " {}".format(n.front.idx)
-            else:
-                s += " \"leaf\""
-            if n.back is not None:
-                s += " {}".format(n.back.idx)
-            else:
-                s += " \"leaf\""
-            s += "\n"
-            fp.write(s)
+    print("# idx x1 y1 x2 y2 front_idx back_idx")
+    for idx, n in enumerate(_nodes):
+        s = "{}".format(idx)
+        s += " {} {}".format(_num(n.line[0][0]), _num(n.line[0][1]))
+        s += " {} {}".format(_num(n.line[1][0]), _num(n.line[1][1]))
+        if n.front is not None:
+            s += " {}".format(n.front.idx)
+        else:
+            s += " \"leaf\""
+        if n.back is not None:
+            s += " {}".format(n.back.idx)
+        else:
+            s += " \"leaf\""
+        print(s)
 
 
 def main(argv):
-    if len(argv) < 2:
-        print "Calculate the node lines for a map"
-        print "usage: {} <map> ...".format(argv[0])
+    if len(argv) < 3:
+        print("Calculate the node lines for a map")
+        print("usage: {} <wad> <map> ...".format(argv[0]))
         sys.exit(0)
 
-    for mapdir in argv[1:]:
-        makeNodes(mapdir)
+    w = wad.Wad(argv[1])
+    for mapname in argv[2:]:
+        makeNodes(w, mapname)
 
 
 if __name__ == "__main__":

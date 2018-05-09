@@ -291,8 +291,8 @@ class Vec3(object):
     def __mul__(self, other):
         return self._binaryop(other, operator.mul)
 
-    def __div__(self, other):
-        return self._binaryop(other, operator.div)
+    def __truediv__(self, other):
+        return self._binaryop(other, operator.truediv)
 
     def __neg__(self):
         try:
@@ -675,8 +675,8 @@ class Vec2(object):
     def __mul__(self, other):
         return self._binaryop(other, operator.mul)
 
-    def __div__(self, other):
-        return self._binaryop(other, operator.div)
+    def __truediv__(self, other):
+        return self._binaryop(other, operator.truediv)
 
     def __neg__(self):
         try:
