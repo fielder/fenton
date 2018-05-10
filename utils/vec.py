@@ -708,16 +708,14 @@ class Line2D(object):
     """
 
     def __init__(self, *args):
-        self._verts = (Vec2(), Vec2())
-
         if len(args) == 0:
-            pass
+            self._verts = (Vec2(), Vec2())
         elif len(args) == 2 and _isXY(args[0]) and _isXY(args[1]):
             # from 2 verts
             self._verts = (Vec2(args[0]), Vec2(args[1]))
         elif len(args) == 1 and isinstance(args[0], Line2D):
             # from another line
-            self._verts = args[0]._verts
+            self._verts = args[0]._verts[:]
         else:
             raise ValueError("invalid values \"{}\"".format(args))
 
@@ -752,14 +750,14 @@ class Line2D(object):
     def __getitem__(self, item):
         return self._verts[item]
 
-    def __setitem__(self, item, val):
-        if item == 0:
-            self._verts = (Vec2(val), self._verts[1])
-        elif item == 1:
-            self._verts = (self._verts[0], Vec2(val))
-        else:
-            raise ValueError("invalid index {}".format(item))
-        self._need_recalc = True
+#    def __setitem__(self, item, val):
+#        if item == 0:
+#            self._verts = (Vec2(val), self._verts[1])
+#        elif item == 1:
+#            self._verts = (self._verts[0], Vec2(val))
+#        else:
+#            raise ValueError("invalid index {}".format(item))
+#        self._need_recalc = True
 
     @property
     def normal(self):

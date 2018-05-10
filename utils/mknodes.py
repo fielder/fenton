@@ -9,9 +9,10 @@ import vec
 #FIXME: output node's original line; not chopped line
 
 class Choice(object):
-    line = None
+    orig = None
     imbalance = 0.0
     crosscount = 0
+
 
 class Node(object):
     idx = -1
@@ -19,14 +20,60 @@ class Node(object):
     front = None
     back = None
 
+
+class Line(vec.Line2D):
+    def __init__(self, l, orig):
+        super().__init__(l)
+        self.orig = orig
+
+    def splitLine(self, other):
+        side = self.lineSide(other, include_on=False)
+
+        front = None
+        back = None
+        on = None
+
+        if side == vec.SIDE_ON:
+            on = other
+        elif side == vec.SIDE_FRONT:
+            front = other
+        elif side == vec.SIDE_BACK:
+            back = other
+        elif side == vec.SIDE_CROSS:
+            front, back = self._splitCrossingLine(other)
+            if front:
+                front = Line(front, other.orig)
+            if back:
+                back = Line(back, other.orig)
+        else:
+            raise Exception("unknown side {}".format(side))
+
+        return (front, back, on)
+
+    def splitLines(self, lines):
+        front = []
+        back = []
+        on = []
+        for l in lines:
+            f, b, o = self.splitLine(l)
+            if f:
+                front.append(Line(f, f.orig))
+            if b:
+                back.append(Line(b, b.orig))
+            if o:
+                on.append(Line(o, o.orig))
+        return (front, back, on)
+
+
 _nodes = []
 
 
 IMBALANCE_CUTOFF = 0.5
 
+
 def _chooseNode(choices):
-    axial = filter(lambda c: c.line.axial, choices)
-    nonaxial = filter(lambda c: not c.line.axial, choices)
+    axial = filter(lambda c: c.orig.axial, choices)
+    nonaxial = filter(lambda c: not c.orig.axial, choices)
 
     for by_axis_list in (axial, nonaxial):
         best = None
@@ -49,10 +96,10 @@ def recursiveBSP(lines):
     # first, find possible cutting nodes
     choices = []
     for l in lines:
-        front, back, cross, on = l.countLinesSides(lines)
+        front, back, cross, on = l.orig.countLinesSides(lines)
         if cross or (front and back):
             c = Choice()
-            c.line = l
+            c.orig = l.orig
             c.imbalance = abs(front - back) / float(len(lines))
             c.crosscount = cross
             choices.append(c)
@@ -65,12 +112,12 @@ def recursiveBSP(lines):
 
     choice = _chooseNode(choices)
 
-    front, back, on = choice.line.splitLines(lines)
+    front, back, on = choice.orig.splitLines(lines)
 
     n = Node()
     n.idx = len(_nodes)
     _nodes.append(n)
-    n.line = choice.line
+    n.line = choice.orig
     n.front = recursiveBSP(front)
     n.back = recursiveBSP(back)
 
@@ -93,18 +140,21 @@ def makeNodes(w, mapname):
     # Note we negate y-axis coordinates from the WAD to match our
     # coordinate system. Consequently, we must reverse the linedef
     # vertex ordering to keep normals correct.
-    lines = [ vec.Line2D((vertexes[ld.v2].x, -vertexes[ld.v2].y), \
+    origs = [ vec.Line2D((vertexes[ld.v2].x, -vertexes[ld.v2].y), \
                          (vertexes[ld.v1].x, -vertexes[ld.v1].y)) \
               for ld in linedefs ]
+    lines = [Line(o, o) for o in origs]
+    for l in lines:
+        l.orig = l
 
     _nodes = []
     recursiveBSP(lines)
 
     print("# idx x1 y1 x2 y2 front_idx back_idx")
-    for idx, n in enumerate(_nodes):
-        s = "{}".format(idx)
-        s += " {} {}".format(_num(n.line[0][0]), _num(n.line[0][1]))
-        s += " {} {}".format(_num(n.line[1][0]), _num(n.line[1][1]))
+    for n in _nodes:
+        s = "{}".format(n.idx)
+        s += " {} {}".format(_num(n.line.orig[0][0]), _num(n.line.orig[0][1]))
+        s += " {} {}".format(_num(n.line.orig[1][0]), _num(n.line.orig[1][1]))
         if n.front is not None:
             s += " {}".format(n.front.idx)
         else:
