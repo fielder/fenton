@@ -33,18 +33,18 @@
  *     non-visible.
  *   If both LR are active, edges behind one vplane must still be
  *     clipped against the other vplane as it could contribute to that
- *     vplane's enter/exit points.
+ *     vplane's enter/exit points. *IMPORTANT*
  *   If both are active, edge is unchopped, and it's behind 1 or both LR
  *     vplanes, cache as non-visible.
  *   If an enter/exit point is generated, BOTH enter and exit points
  *     must be created. Die & debug if only an enter or only an exit was
  *     made.
- * If an edge is unchopped by LR, and rejected by TB, cache as
- *   non-visible
  * After LR, clip against TB
  *   If TB are not active, skip
- * After edges are run through, clip extra LR edges against TB and
- *   emit. Emitted extra LR edges are never cached.
+ * If an edge is unchopped by LR, and rejected by TB, cache as
+ *   non-visible
+ * After edges are run through, clip extra enter/exit LR edges against
+ * TB and emit. Emitted extra LR edges are never cached.
  * When projecting and emitting, don't emit edges that are only 1 pixel
  *   high
  * If <= 1 edges are emitted, winding is not visible.
@@ -59,7 +59,7 @@
  *   sometimes leads to odd cases that need to be patched up.
  */
 
-#define MAX_EMITEDGES 65535
+#define MAX_EMITEDGES 2048
 
 #define MAX_POLY_DRAWEDGES 32
 

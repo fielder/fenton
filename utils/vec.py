@@ -335,8 +335,7 @@ class Poly3D(object):
         if other:
             if isinstance(other, Poly3D):
                 self._verts = other._verts[:]
-            elif isinstance(other, list) or \
-                 isinstance(other, tuple):
+            elif isinstance(other, (list, tuple)):
                 self._verts = [Vec3(o) for o in other]
             else:
                 raise ValueError("invalid value \"{}\"".format(other))
@@ -889,8 +888,7 @@ class Poly2D(object):
         if other:
             if isinstance(other, Poly2D):
                 self._verts = other._verts[:]
-            elif isinstance(other, list) or \
-                 isinstance(other, tuple):
+            elif isinstance(other, (list, tuple)):
                 self._verts = [Vec2(o) for o in other]
             else:
                 raise ValueError("invalid value \"{}\"".format(other))
