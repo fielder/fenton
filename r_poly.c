@@ -10,7 +10,18 @@
 #include "map.h"
 #include "render.h"
 
-//TODO: figure out if drawedge idx 0 should still be avoided
+/*
+ * Because maps store backwards edges as negative numbers, and there is
+ * no -0, map edge index 0 is invalid. It's up to the map generator to
+ * ensure map edge 0 is not used.
+ */
+
+/*
+ * Because all windings are stored CCW, we can determine when a
+ * projected edge is left or right. If v1->v2 projects downward in
+ * screen space it's left, otherwise right. Note backwards edges must
+ * be handled as well.
+ */
 
 /*
  * A chopped edge is never cached.
@@ -77,7 +88,8 @@ struct drawedge_s
 
 /* scanedges are ephemeral, only needed when scan-converting a poly's
  * emitedges to spans
- * scanedges are stored in a single list, sorted by top coord */
+ * We keep left and right sets of scanedges. When an edge is projected
+ * it's sorted, by top v, into the correct L or R scanedge set */
 struct scanedge_s
 {
 	struct drawedge_s *drawedge;
@@ -204,7 +216,7 @@ EmitScanEdge (struct drawedge_s *drawedge, int is_left)
 enum
 {
 	CLIP_CHOPPED, /* chopped by plane */
-	CLIP_SINGLE, /* behind L or behind R */
+	CLIP_SINGLE, /* behind plane */
 	CLIP_DOUBLE, /* behind both L and R */
 	CLIP_FRONT, /* fully in front of plane */
 	CLIP_CHOPPED_BACK, /* chopped by a LR plane, but not visible;
@@ -606,8 +618,7 @@ TryEdgeCache (int medgeidx)
 			return 1;
 		}
 	}
-	/* note drawedge index 0 is invalid (used as NULL drawedge) */
-	else if (cacheidx > 0 &&
+	else if (cacheidx >= 0 &&
 		cacheidx < (drawedges_p - drawedges) &&
 		drawedges[cacheidx].medgeidx == medgeidx)
 	{
@@ -868,8 +879,6 @@ R_Surf_BeginFrame (void *surfbuf, int surfbufsize, void *edgebuf, int edgebufsiz
 	drawedges_p = drawedges = AlignAllocation (edgebuf, edgebufsize, sizeof(*drawedges), &cnt);
 	cnt = (cnt > MAX_EMITEDGES) ? (MAX_EMITEDGES) : (cnt);
 	drawedges_end = drawedges + cnt;
-
-	drawedges_p++; /* index 0 is used for NULL drawedge */
 }
 
 

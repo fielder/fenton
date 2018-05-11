@@ -6,7 +6,6 @@ import wadmap
 import wad
 import vec
 
-#FIXME: output node's original line; not chopped line
 
 class Choice(object):
     orig = None
@@ -65,9 +64,6 @@ class Line(vec.Line2D):
         return (front, back, on)
 
 
-_nodes = []
-
-
 IMBALANCE_CUTOFF = 0.5
 
 
@@ -92,7 +88,7 @@ def _chooseNode(choices):
     raise Exception("no node chosen")
 
 
-def recursiveBSP(lines):
+def recursiveBSP(lines, outnodes):
     # first, find possible cutting nodes
     choices = []
     for l in lines:
@@ -115,25 +111,16 @@ def recursiveBSP(lines):
     front, back, on = choice.orig.splitLines(lines)
 
     n = Node()
-    n.idx = len(_nodes)
-    _nodes.append(n)
+    n.idx = len(outnodes)
+    outnodes.append(n)
     n.line = choice.orig
-    n.front = recursiveBSP(front)
-    n.back = recursiveBSP(back)
+    n.front = recursiveBSP(front, outnodes)
+    n.back = recursiveBSP(back, outnodes)
 
     return n
 
 
-def _num(val):
-    ival = int(val)
-    if val == ival:
-        return str(ival)
-    return str(val)
-
-
 def makeNodes(w, mapname):
-    global _nodes
-
     vertexes = list(wadmap.iterVertexes(wadmap.lumpForMap(w, mapname, "VERTEXES")))
     linedefs = list(wadmap.iterLinedefs(wadmap.lumpForMap(w, mapname, "LINEDEFS")))
 
@@ -147,11 +134,21 @@ def makeNodes(w, mapname):
     for l in lines:
         l.orig = l
 
-    _nodes = []
-    recursiveBSP(lines)
+    nodes = []
+    recursiveBSP(lines, nodes)
+    return nodes
 
+
+def _num(val):
+    ival = int(val)
+    if val == ival:
+        return str(ival)
+    return str(val)
+
+
+def printNodes(nodes):
     print("# idx x1 y1 x2 y2 front_idx back_idx")
-    for n in _nodes:
+    for n in nodes:
         s = "{}".format(n.idx)
         s += " {} {}".format(_num(n.line.orig[0][0]), _num(n.line.orig[0][1]))
         s += " {} {}".format(_num(n.line.orig[1][0]), _num(n.line.orig[1][1]))
@@ -174,7 +171,8 @@ def main(argv):
 
     w = wad.Wad(argv[1])
     for mapname in argv[2:]:
-        makeNodes(w, mapname)
+        nodes = makeNodes(w, mapname)
+        printNodes(nodes)
 
 
 if __name__ == "__main__":
