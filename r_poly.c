@@ -106,19 +106,17 @@ static struct drawedge_s *drawedges_p = NULL;
 static struct drawedge_s *drawedges_end = NULL;
 
 /* uncacheable emitted edges */
-struct drawedge_s *extraedges = NULL;
 struct drawedge_s *extraedges_p = NULL;
 struct drawedge_s *extraedges_end = NULL;
 
 static struct scanedge_s scanedges_l;
 static struct scanedge_s scanedges_r;
-static struct scanedge_s *scanedges = NULL;
 static struct scanedge_s *scanedge_p = NULL;
 static struct scanedge_s *scanedge_end = NULL;
 
 
 static void
-ProcessScanEdges (void)
+GenSpans (void)
 {
 	struct scanedge_s *se_l = scanedges_l.next;
 	struct scanedge_s *se_r = scanedges_r.next;
@@ -150,9 +148,9 @@ ProcessScanEdges (void)
 			se_r->drawedge->top &= 0x8000;
 		}
 	}
-	int bot =	(DRAWEDGE_BOT(se_l->drawedge) > DRAWEDGE_BOT(se_r->drawedge)) ?
-			DRAWEDGE_BOT(se_l->drawedge) :
-			DRAWEDGE_BOT(se_r->drawedge);
+	int bot = (DRAWEDGE_BOT(se_l->drawedge) > DRAWEDGE_BOT(se_r->drawedge)) ?
+		DRAWEDGE_BOT(se_l->drawedge) :
+		DRAWEDGE_BOT(se_r->drawedge);
 	int l_u = 0x7fffffff;
 	int l_du = 0;
 	int r_u = 0x80000000;
@@ -668,12 +666,22 @@ ProcessEnterExitEdge (double enter[3], double exit[3], int planemask)
 }
 
 
-static void
-GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
+static int
+GenScanEdgesForEdgeLoop (int edgeloop_start,
+			int numedges,
+			int planemask,
+			struct scanedge_s *scanedges,
+			struct drawedge_s *extraedges)
 {
-//TODO: pass in scanedges & extraedges
 	scanedge_p = scanedges;
 	extraedges_p = extraedges;
+
+	scanedges_l.drawedge = NULL;
+	scanedges_l.next = NULL;
+	scanedges_l.top = -9999;
+	scanedges_r.drawedge = NULL;
+	scanedges_r.next = NULL;
+	scanedges_r.top = -9999;
 
 	enter_left = NULL;
 	exit_left = NULL;
@@ -796,60 +804,58 @@ GenSpansForEdgeLoop (int edgeloop_start, int numedges, int planemask)
 		ProcessEnterExitEdge (enter_right, exit_right, planemask);
 	}
 
-	if (scanedge_p == scanedges)
+	if (scanedge_p - scanedges <= 1)
 	{
-		/* no scanedges generated; winding not visible */
-		return;
-	}
-
-	if (scanedge_p - scanedges == 1)
-	{
-		/* possible to gen only 1 scanedge due to math
-		 * imprecision
+		/* If no scanedges are generated, winding is not
+		 * visible.
+		 *
+		 * It's possible to have only 1 scanedge due to math
+		 * imprecision.
 		 * pos = 50.452744 20.029897 42.966270
 		 * angles = 0.198413 5.419247 0.000000 */
-		return;
+		return 0;
 	}
 
-	ProcessScanEdges ();
+	return 1;
 }
 
 
 void
 R_GenSpansForSurfaces (unsigned int first, int count, int planemask, int backface_check)
 {
-	struct scanedge_s _scanpool[MAX_POLY_DRAWEDGES];
-	scanedges = _scanpool;
-	scanedge_end = _scanpool + (sizeof(_scanpool) / sizeof(_scanpool[0]));
-	scanedges_l.drawedge = NULL;
-	scanedges_l.next = NULL;
-	scanedges_l.top = -9999;
-	scanedges_r.drawedge = NULL;
-	scanedges_r.next = NULL;
-	scanedges_r.top = -9999;
+	struct scanedge_s scanpool[MAX_POLY_DRAWEDGES];
+	scanedge_end = scanpool + (sizeof(scanpool) / sizeof(scanpool[0]));
 
-	struct drawedge_s _extra[MAX_POLY_DRAWEDGES];
-	extraedges = _extra;
-	extraedges_end = _extra + (sizeof(_extra) / sizeof(_extra[0]));
+	/* un-cacheable drawedges */
+	struct drawedge_s ucdedges[MAX_POLY_DRAWEDGES];
+	extraedges_end = ucdedges + (sizeof(ucdedges) / sizeof(ucdedges[0]));
 
 	while (count-- > 0)
 	{
+		if (surfs_p == surfs_end)
+			break;
+
 		struct msurface_s *msurf = &map.surfaces[first++];
-		if (!backface_check || Map_DistFromSurface(msurf, camera.pos) >= SURF_BACKFACE_EPSILON)
+
+		if (backface_check && Map_DistFromSurface(msurf, camera.pos) < SURF_BACKFACE_EPSILON)
+			continue;
+
+		if (GenScanEdgesForEdgeLoop(msurf->edgeloop_start,
+					msurf->numedges,
+					planemask,
+					scanpool,
+					ucdedges))
 		{
-			if (surfs_p != surfs_end)
+			struct drawspan_s *firstspan = r_spans;
+			GenSpans ();
+			if (r_spans != firstspan)
 			{
-				struct drawspan_s *firstspan = r_spans;
-				GenSpansForEdgeLoop (msurf->edgeloop_start, msurf->numedges, planemask);
-				if (r_spans != firstspan)
-				{
-					/* spans were created, surf is visible */
-					surfs_p->spans = firstspan;
-					surfs_p->numspans = r_spans - firstspan;
-					surfs_p->msurfidx = msurf - map.surfaces;
-					//TODO: texturing n' stuff
-					surfs_p++;
-				}
+				/* spans were created, surf is visible */
+				surfs_p->spans = firstspan;
+				surfs_p->numspans = r_spans - firstspan;
+				surfs_p->msurfidx = msurf - map.surfaces;
+				//TODO: texturing n' stuff
+				surfs_p++;
 			}
 		}
 	}
