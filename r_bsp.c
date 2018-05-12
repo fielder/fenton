@@ -5,12 +5,6 @@
 #include "appio.h"
 #include "render.h"
 
-extern void
-R_GenSpansForSurfaces (unsigned int first, int count, int planemask, int backface_check);
-
-extern int
-R_CheckPortalVisibility (struct mportal_s *portal, int planemask, int reversewinding);
-
 static void
 VisitNodeRecursive (void *visit, int planemask);
 
@@ -141,9 +135,6 @@ VisitNodeRecursive (void *visit, int planemask)
 }
 
 
-extern void
-R_Surf_BeginFrame (void *surfbuf, int surfbufsize, void *edgebuf, int edgebufsize);
-
 void
 R_DrawWorld (void)
 {
@@ -151,7 +142,8 @@ R_DrawWorld (void)
 	char surfbuf[32 * 1024];
 	char edgebuf[32 * 1024];
 
-	R_Surf_BeginFrame (surfbuf, sizeof(surfbuf), edgebuf, sizeof(edgebuf));
+	R_Edge_BeginFrame (edgebuf, sizeof(edgebuf));
+	R_Surf_BeginFrame (surfbuf, sizeof(surfbuf));
 	R_Span_BeginFrame (spanbuf, sizeof(spanbuf), video.w, video.h);
 
 	if (map.num_nodes > 0)
@@ -161,5 +153,5 @@ R_DrawWorld (void)
 	else
 		/* no geometry */ ;
 
-	R_DrawSurfs ();
+	R_Surf_DrawAll ();
 }

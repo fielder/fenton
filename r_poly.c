@@ -1,3 +1,5 @@
+//TODO: rename to r_edge.c?
+
 #include <string.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -61,7 +63,7 @@
 
 #define MAX_EMITEDGES 2048
 
-#define MAX_POLY_DRAWEDGES 32
+#define MAX_WINDING_DRAWEDGES 32
 
 /*
  * Since extra edges aren't cached and we scan a poly right after
@@ -96,10 +98,6 @@ struct scanedge_s
 	struct scanedge_s *next;
 	int top;
 };
-
-struct drawsurf_s *surfs = NULL;
-struct drawsurf_s *surfs_p = NULL;
-static struct drawsurf_s *surfs_end = NULL;
 
 static struct drawedge_s *drawedges = NULL;
 static struct drawedge_s *drawedges_p = NULL;
@@ -819,22 +817,24 @@ GenScanEdgesForEdgeLoop (int edgeloop_start,
 	return 1;
 }
 
+extern void
+R_Surf_Emit (struct msurface_s *msurf, struct drawspan_s *firstspan, int numspans);
 
 void
-R_GenSpansForSurfaces (unsigned int first, int count, int planemask, int backface_check)
+R_GenSpansForSurfaces (	unsigned int first,
+			int count,
+			int planemask,
+			int backface_check)
 {
-	struct scanedge_s scanpool[MAX_POLY_DRAWEDGES];
+	struct scanedge_s scanpool[MAX_WINDING_DRAWEDGES];
 	scanedge_end = scanpool + (sizeof(scanpool) / sizeof(scanpool[0]));
 
 	/* un-cacheable drawedges */
-	struct drawedge_s ucdedges[MAX_POLY_DRAWEDGES];
+	struct drawedge_s ucdedges[MAX_WINDING_DRAWEDGES];
 	extraedges_end = ucdedges + (sizeof(ucdedges) / sizeof(ucdedges[0]));
 
 	while (count-- > 0)
 	{
-		if (surfs_p == surfs_end)
-			break;
-
 		struct msurface_s *msurf = &map.surfaces[first++];
 
 		if (backface_check && Map_DistFromSurface(msurf, camera.pos) < SURF_BACKFACE_EPSILON)
@@ -848,23 +848,18 @@ R_GenSpansForSurfaces (unsigned int first, int count, int planemask, int backfac
 		{
 			struct drawspan_s *firstspan = r_spans;
 			GenSpans ();
+			/* if spans were created, surf is visible */
 			if (r_spans != firstspan)
-			{
-				/* spans were created, surf is visible */
-				surfs_p->spans = firstspan;
-				surfs_p->numspans = r_spans - firstspan;
-				surfs_p->msurfidx = msurf - map.surfaces;
-				//TODO: texturing n' stuff
-				surfs_p++;
-			}
+				R_Surf_Emit (msurf, firstspan, r_spans - firstspan);
 		}
 	}
 }
 
 
 int
-R_CheckPortalVisibility (struct mportal_s *portal, int planemask, int reversewinding)
+R_CheckPortalVisibility (int portalidx, int planemask, int reversewinding)
 {
+	//struct mportal_s *portal = &map.portals[portalidx];
 	// clip and emit edges just as usual
 	// scan over the emitted edges; if a span is visible return true
 	// all spans don't need to be checked; only 1 visible span is sufficient
@@ -875,13 +870,9 @@ R_CheckPortalVisibility (struct mportal_s *portal, int planemask, int reversewin
 
 
 void
-R_Surf_BeginFrame (void *surfbuf, int surfbufsize, void *edgebuf, int edgebufsize)
+R_Edge_BeginFrame (void *edgebuf, int edgebufsize)
 {
 	unsigned int cnt;
-
-	surfs_p = surfs = AlignAllocation (surfbuf, surfbufsize, sizeof(*surfs), &cnt);
-	surfs_end = surfs + cnt;
-
 	drawedges_p = drawedges = AlignAllocation (edgebuf, edgebufsize, sizeof(*drawedges), &cnt);
 	cnt = (cnt > MAX_EMITEDGES) ? (MAX_EMITEDGES) : (cnt);
 	drawedges_end = drawedges + cnt;

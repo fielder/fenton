@@ -74,6 +74,20 @@ R_Refresh (void);
 extern void
 R_Die (const char *msg);
 
+/* edge processing to spans */
+
+extern void
+R_GenSpansForSurfaces (	unsigned int first,
+			int count,
+			int planemask,
+			int backface_check);
+
+extern int
+R_CheckPortalVisibility (int portalidx, int planemask, int reversewinding);
+
+extern void
+R_Edge_BeginFrame (void *edgebuf, int edgebufsize);
+
 /* surface draw to framebuffer */
 
 struct drawsurf_s
@@ -91,9 +105,13 @@ struct drawsurf_s
 
 extern struct drawsurf_s *surfs;
 extern struct drawsurf_s *surfs_p;
+extern struct drawsurf_s *surfs_end;
 
 extern void
-R_DrawSurfs (void);
+R_Surf_DrawAll (void);
+
+extern void
+R_Surf_BeginFrame (void *surfbuf, int surfbufsize);
 
 /* span stuff */
 
@@ -117,10 +135,10 @@ extern void
 R_Span_ClipAndEmit (int y, int x1, int x2);
 
 extern void
-R_Span_BeginFrame (void *buf, int buflen, int w, int h);
+R_Span_DrawGSpans (void);
 
 extern void
-R_Span_DrawGSpans (void);
+R_Span_BeginFrame (void *buf, int buflen, int w, int h);
 
 /* world traverse */
 
