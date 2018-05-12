@@ -1,23 +1,16 @@
 #!/usr/bin/env python3
 
 import sys
+import collections
 
 import wadmap
 import wad
 import vec
 
 
-class Choice(object):
-    orig = None
-    imbalance = 0.0
-    crosscount = 0
+Choice = collections.namedtuple("Choice", "orig imbalance crosscount")
 
-
-class Node(object):
-    idx = -1
-    line = None
-    front = None
-    back = None
+Node = collections.namedtuple("Node", "idx v1 v2 front back")
 
 
 class Line(vec.Line2D):
@@ -94,10 +87,9 @@ def recursiveBSP(lines, outnodes):
     for l in lines:
         front, back, cross, on = l.orig.countLinesSides(lines)
         if cross or (front and back):
-            c = Choice()
-            c.orig = l.orig
-            c.imbalance = abs(front - back) / float(len(lines))
-            c.crosscount = cross
+            c = Choice(l.orig,
+                       abs(front - back) / float(len(lines)),
+                       cross)
             choices.append(c)
 
     if not choices:
@@ -110,14 +102,20 @@ def recursiveBSP(lines, outnodes):
 
     front, back, on = choice.orig.splitLines(lines)
 
-    n = Node()
-    n.idx = len(outnodes)
-    outnodes.append(n)
-    n.line = choice.orig
-    n.front = recursiveBSP(front, outnodes)
-    n.back = recursiveBSP(back, outnodes)
+    # reserve its spot in the node list before recursing
+    idx = len(outnodes)
+    outnodes.append(None)
 
-    return n
+    f = recursiveBSP(front, outnodes)
+    b = recursiveBSP(back, outnodes)
+
+    outnodes[idx] = Node(idx,
+                         (choice.orig[0][0], choice.orig[0][1]),
+                         (choice.orig[1][0], choice.orig[1][1]),
+                         f,
+                         b)
+
+    return outnodes[idx]
 
 
 def makeNodes(w, mapname):
@@ -132,6 +130,7 @@ def makeNodes(w, mapname):
               for ld in linedefs ]
     lines = [Line(o, o) for o in origs]
     for l in lines:
+        # each orig line is its own orig
         l.orig = l
 
     nodes = []
@@ -150,8 +149,8 @@ def printNodes(nodes):
     print("# idx x1 y1 x2 y2 front_idx back_idx")
     for n in nodes:
         s = "{}".format(n.idx)
-        s += " {} {}".format(_num(n.line.orig[0][0]), _num(n.line.orig[0][1]))
-        s += " {} {}".format(_num(n.line.orig[1][0]), _num(n.line.orig[1][1]))
+        s += " {} {}".format(_num(n.v1[0]), _num(n.v1[1]))
+        s += " {} {}".format(_num(n.v2[0]), _num(n.v2[1]))
         if n.front is not None:
             s += " {}".format(n.front.idx)
         else:
