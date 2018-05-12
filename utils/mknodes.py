@@ -98,14 +98,12 @@ def recursiveBSP(lines, outnodes):
 
     # a splitting node
 
-    choice = _chooseNode(choices)
-
-    front, back, on = choice.orig.splitLines(lines)
-
     # reserve its spot in the node list before recursing
     idx = len(outnodes)
     outnodes.append(None)
 
+    choice = _chooseNode(choices)
+    front, back, on = choice.orig.splitLines(lines)
     f = recursiveBSP(front, outnodes)
     b = recursiveBSP(back, outnodes)
 

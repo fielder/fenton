@@ -112,7 +112,7 @@ def splitPoly(verts, normal, dist):
     frontv = []
     backv = []
 
-    for idx in xrange(len(verts)):
+    for idx in range(len(verts)):
         v = verts[idx]
         dist = dists[idx]
         side = sides[idx]
@@ -801,8 +801,8 @@ class Line2D(object):
             side = SIDE_CROSS
 
         if side == SIDE_ON and not include_on:
-            # caller wants colinear lines to be classified as on the
-            # front or back side, never on the line
+            # caller wants colinear lines to be classified as front or
+            # back side, never on the line
             p = other[0] + (other.normal * 10.0)
             side = self.pointSide(p)
             if side == SIDE_ON:
