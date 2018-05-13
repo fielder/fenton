@@ -12,7 +12,7 @@ VisitNodeRecursive (void *visit, int planemask);
 static void
 VisitLeaf (struct mleaf_s *leaf, int planemask)
 {
-	R_GenSpansForSurfaces (leaf->firstsurface, leaf->numsurfaces, planemask, 1);
+	R_Edge_ProcessSurfaces (leaf->firstsurface, leaf->numsurfaces, planemask, 1);
 }
 
 
@@ -51,7 +51,7 @@ VisitNode (struct mnode_s *node, int planemask)
 				i++, portal++ )
 			{
 #if 0
-				if (R_CheckPortalVisibility(portal, cplanes, numcplanes, 0))
+				if (R_Edge_CheckPortalVisibility(portal, cplanes, numcplanes, 0))
 #endif
 				{
 					portal_visible = 1;

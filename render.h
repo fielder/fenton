@@ -77,13 +77,15 @@ R_Die (const char *msg);
 /* edge processing to spans */
 
 extern void
-R_GenSpansForSurfaces (	unsigned int first,
+R_Edge_ProcessSurfaces (unsigned int first,
 			int count,
 			int planemask,
 			int backface_check);
 
 extern int
-R_CheckPortalVisibility (int portalidx, int planemask, int reversewinding);
+R_Edge_CheckPortalVisibility (	int portalidx,
+				int planemask,
+				int reversewinding);
 
 extern void
 R_Edge_BeginFrame (void *edgebuf, int edgebufsize);
@@ -92,11 +94,10 @@ R_Edge_BeginFrame (void *edgebuf, int edgebufsize);
 
 struct drawsurf_s
 {
-	struct drawspan_s *spans;
+	unsigned short firstspanidx;
+	unsigned short numspans;
 
 	unsigned int msurfidx;
-
-	unsigned short numspans;
 
 	//TODO: texture mapping stuff
 
@@ -123,6 +124,7 @@ struct drawspan_s
 };
 
 extern struct drawspan_s *r_spans;
+extern struct drawspan_s *r_spans_p;
 
 extern void
 R_Span_Cleanup (void);

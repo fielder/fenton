@@ -20,6 +20,7 @@ innodes = None
 InNode = collections.namedtuple("InNode", "line frontidx backidx")
 
 
+#FIXME: figure out why we're getting None polys...
 def recurse2D(nodeidx, lines, poly):
     if nodeidx is None:
         # leaf
@@ -33,6 +34,10 @@ def recurse2D(nodeidx, lines, poly):
         flines, blines, olines = node.line.splitLines(lines)
 
         fpoly, bpoly = poly.splitWithLine(node.line)
+        #print(node.line)
+        #print(fpoly)
+        #print(bpoly)
+        #print()
 
         front = recurse2D(node.frontidx, flines, fpoly)
         back = recurse2D(node.backidx, blines, bpoly)
@@ -89,7 +94,7 @@ def process2D(w, mapname):
                        (maxx, maxy),
                        (maxx, miny)))
 
-    process3D(recurse2D(headnodeidx, lines, poly))
+    return recurse2D(headnodeidx, lines, poly)
 
 
 def process3D(head):

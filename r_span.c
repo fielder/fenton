@@ -18,6 +18,7 @@ struct gspan_s
 
 /* global, but point to a temp buffer on the stack during refresh */
 struct drawspan_s *r_spans = NULL;
+struct drawspan_s *r_spans_p = NULL;
 static struct drawspan_s *r_spans_end = NULL;
 
 static struct gspan_s *gspans = NULL;
@@ -83,6 +84,7 @@ R_Span_Cleanup (void)
 	display_h = 0;
 	poolidx = NULLIDX;
 	r_spans = NULL;
+	r_spans_p = NULL;
 	r_spans_end = NULL;
 }
 
@@ -90,12 +92,12 @@ R_Span_Cleanup (void)
 static inline void
 PushSpan (short y, short x1, short x2)
 {
-	if (r_spans != r_spans_end)
+	if (r_spans_p != r_spans_end)
 	{
-		r_spans->u = x1;
-		r_spans->v = y;
-		r_spans->len = x2 - x1 + 1;
-		r_spans++;
+		r_spans_p->u = x1;
+		r_spans_p->v = y;
+		r_spans_p->len = x2 - x1 + 1;
+		r_spans_p++;
 	}
 }
 
@@ -235,7 +237,7 @@ R_Span_BeginFrame (void *buf, int buflen, int w, int h)
 		Init (w, h);
 
 	/* set up draw spans */
-	r_spans = AlignAllocation (buf, buflen, sizeof(*r_spans), &cnt);
+	r_spans = r_spans_p = AlignAllocation (buf, buflen, sizeof(*r_spans), &cnt);
 	r_spans_end = r_spans + cnt;
 
 	/* take any gspan still remaining on each row and toss back into

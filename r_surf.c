@@ -32,15 +32,16 @@ DrawSpan (struct drawspan_s *s, int c)
 
 
 void
-R_Surf_Emit (struct msurface_s *msurf, struct drawspan_s *firstspan, int numspans)
+R_Surf_Emit (struct msurface_s *msurf, int firstspanidx, int numspans)
 {
 	if (surfs_p == surfs_end)
 		return;
 
-	surfs_p->spans = firstspan;
-	surfs_p->numspans = r_spans - firstspan;
+	surfs_p->firstspanidx = firstspanidx;
+	surfs_p->numspans = numspans;
 	surfs_p->msurfidx = msurf - map.surfaces;
 	//TODO: texturing n' stuff
+
 	surfs_p++;
 }
 
@@ -53,7 +54,7 @@ R_Surf_DrawAll (void)
 	{
 		struct drawspan_s *s;
 		int i;
-		for (i = 0, s = ds->spans; i < ds->numspans; i++, s++)
+		for (i = 0, s = &r_spans[ds->firstspanidx]; i < ds->numspans; i++, s++)
 		{
 			int c = ((uintptr_t)&map.surfaces[ds->msurfidx] >> 4) & 0xffffff;
 			DrawSpan (s, c);

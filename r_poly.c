@@ -818,10 +818,10 @@ GenScanEdgesForEdgeLoop (int edgeloop_start,
 }
 
 extern void
-R_Surf_Emit (struct msurface_s *msurf, struct drawspan_s *firstspan, int numspans);
+R_Surf_Emit (struct msurface_s *msurf, int firstspanidx, int numspans);
 
 void
-R_GenSpansForSurfaces (	unsigned int first,
+R_Edge_ProcessSurfaces (unsigned int first,
 			int count,
 			int planemask,
 			int backface_check)
@@ -846,25 +846,29 @@ R_GenSpansForSurfaces (	unsigned int first,
 					scanpool,
 					ucdedges))
 		{
-			struct drawspan_s *firstspan = r_spans;
+			struct drawspan_s *firstspan = r_spans_p;
 			GenSpans ();
 			/* if spans were created, surf is visible */
-			if (r_spans != firstspan)
-				R_Surf_Emit (msurf, firstspan, r_spans - firstspan);
+			if (r_spans_p != firstspan)
+				R_Surf_Emit (msurf, firstspan - r_spans, r_spans_p - firstspan);
 		}
 	}
 }
 
 
 int
-R_CheckPortalVisibility (int portalidx, int planemask, int reversewinding)
+R_Edge_CheckPortalVisibility (	int portalidx,
+				int planemask,
+				int reversewinding)
 {
 	//struct mportal_s *portal = &map.portals[portalidx];
 	// clip and emit edges just as usual
 	// scan over the emitted edges; if a span is visible return true
 	// all spans don't need to be checked; only 1 visible span is sufficient
-	// the only side-effect of this function will be emitted edges
+	// the only side-effect of this function will potentially be new cached drawedges
 	//TODO: ...
+	// probably use GenScanEdgesForEdgeLoop; pass in edgeloop array
+	//  and create a temp, reversed loop, if view is behind portal
 	return 0;
 }
 
