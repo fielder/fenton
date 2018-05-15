@@ -19,7 +19,6 @@ VisitLeaf (struct mleaf_s *leaf, int planemask)
 static void
 VisitNode (struct mnode_s *node, int planemask)
 {
-#if 0
 	int portal_visible = 0;
 	double dist;
 	int side;
@@ -28,6 +27,7 @@ VisitNode (struct mnode_s *node, int planemask)
 	dist = Map_DistFromPlane (&map.planes[node->plane], camera.pos);
 	side = dist < 0.0;
 
+#if 0
 	if (side == 0)
 	{
 		VisitNodeRecursive (node->children[0], cplanes, numcplanes);
@@ -44,6 +44,7 @@ VisitNode (struct mnode_s *node, int planemask)
 						numcplanes,
 						0 /* backface check unnecessary since we're drawing front surfs */
 						);
+			TODO: if no map portals; dev map; always descend down back side
 #endif
 
 			for (	i = 0, portal = map.portals + node->firstportal;
@@ -76,11 +77,11 @@ VisitNode (struct mnode_s *node, int planemask)
 		//...
 		//...
 	}
+#endif
 
 	/* go down back side only if a portal is visible */
 	if (portal_visible)
-		VisitNodeRecursive (node->children[!side], cplanes, numcplanes);
-#endif
+		VisitNodeRecursive (node->children[!side], planemask);
 }
 
 
@@ -141,6 +142,13 @@ R_DrawWorld (void)
 	char spanbuf[32 * 1024];
 	char surfbuf[32 * 1024];
 	char edgebuf[32 * 1024];
+	//TODO: keep stats and tweak buf sizes
+	// - spans max, min, avg created
+	// - surfs max, min, avg created
+	// maybe bin numbers
+	// - edges: cached per frame; cache hit, cache miss
+	// - edges: number of uncached extraedges per poly
+	// allow bug sizes config-settable
 
 	R_Edge_BeginFrame (edgebuf, sizeof(edgebuf));
 	R_Surf_BeginFrame (surfbuf, sizeof(surfbuf));

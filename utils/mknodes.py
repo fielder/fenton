@@ -18,8 +18,9 @@ class Line(vec.Line2D):
         super().__init__(l)
         self.orig = orig
 
-    def splitLine(self, other):
-        side = self.lineSide(other, include_on=False)
+    def splitLine(self, other, include_on=True):
+        # always include on
+        side = self.lineSide(other, include_on=True)
 
         front = None
         back = None
@@ -33,6 +34,7 @@ class Line(vec.Line2D):
             back = other
         elif side == vec.SIDE_CROSS:
             front, back = self._splitCrossingLine(other)
+            # fragments should preserve the orig reference
             if front:
                 front = Line(front, other.orig)
             if back:
@@ -40,20 +42,6 @@ class Line(vec.Line2D):
         else:
             raise Exception("unknown side {}".format(side))
 
-        return (front, back, on)
-
-    def splitLines(self, lines):
-        front = []
-        back = []
-        on = []
-        for l in lines:
-            f, b, o = self.splitLine(l)
-            if f:
-                front.append(Line(f, f.orig))
-            if b:
-                back.append(Line(b, b.orig))
-            if o:
-                on.append(Line(o, o.orig))
         return (front, back, on)
 
 
@@ -106,6 +94,7 @@ def recursiveBSP(lines, outnodes):
     front, back, on = choice.orig.splitLines(lines)
     f = recursiveBSP(front, outnodes)
     b = recursiveBSP(back, outnodes)
+    # lines on the node no longer contribute to nodes calc
 
     outnodes[idx] = Node(idx,
                          (choice.orig[0][0], choice.orig[0][1]),

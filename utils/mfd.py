@@ -15,34 +15,43 @@ Node2D = collections.namedtuple("Node2D", "line onlines front back")
 
 sidedefs = None
 sectors = None
-innodes = None
 
 InNode = collections.namedtuple("InNode", "line frontidx backidx")
 
+innodes = None
+
+#TODO: round off output vertices to 0.001 or so
 
 #FIXME: figure out why we're getting None polys...
 def recurse2D(nodeidx, lines, poly):
     if nodeidx is None:
+#        print("leaf")
+#        print(lines)
+#        print(poly)
         # leaf
         for l in lines:
             poly, _ = poly.splitWithLine(l)
-        return Leaf2D(lines, poly)
+        ret = Leaf2D(lines, poly)
+#        print("leaf emit poly: {}".format(poly))
+#        print()
+        return ret
     else:
         # node
         node = innodes[nodeidx]
+#        print("node {}".format(nodeidx))
 
         flines, blines, olines = node.line.splitLines(lines)
 
         fpoly, bpoly = poly.splitWithLine(node.line)
-        #print(node.line)
-        #print(fpoly)
-        #print(bpoly)
-        #print()
+#        print("f poly {}".format(fpoly))
+#        print("b poly {}".format(bpoly))
+#        print()
 
         front = recurse2D(node.frontidx, flines, fpoly)
         back = recurse2D(node.backidx, blines, bpoly)
 
-        return Node2D(node.line, olines, front, back)
+        ret = Node2D(node.line, olines, front, back)
+        return ret
 
     raise Exception("shouldn't happen")
 
@@ -72,6 +81,10 @@ def process2D(w, mapname):
                 backidx = n.back.idx
             innodes.append(InNode(line, frontidx, backidx))
         headnodeidx = 0
+#        if True:
+#            for n in innodes:
+#                print(n)
+#            print()
 
     vertexes = list(wadmap.iterVertexes(wadmap.lumpForMap(w, mapname, "VERTEXES")))
     linedefs = list(wadmap.iterLinedefs(wadmap.lumpForMap(w, mapname, "LINEDEFS")))
@@ -81,18 +94,22 @@ def process2D(w, mapname):
     # Note we negate y-axis coordinates from the WAD to match our
     # coordinate system. Consequently, we must reverse the linedef
     # vertex ordering to keep normals correct.
-    lines = [ vec.Line2D((vertexes[ld.v2].x, -vertexes[ld.v2].y), \
-                         (vertexes[ld.v1].x, -vertexes[ld.v1].y)) \
+    ourverts = [(v.x, -v.y) for v in vertexes]
+    lines = [ vec.Line2D((ourverts[ld.v2][0], ourverts[ld.v2][1]), \
+                         (ourverts[ld.v1][0], ourverts[ld.v1][1])) \
               for ld in linedefs ]
 
-    minx = min((v.x for v in vertexes)) - 128
-    maxx = max((v.x for v in vertexes)) + 128
-    miny = min((v.y for v in vertexes)) - 128
-    maxy = max((v.y for v in vertexes)) + 128
+    minx = min((v[0] for v in ourverts)) - 128
+    maxx = max((v[0] for v in ourverts)) + 128
+    miny = min((v[1] for v in ourverts)) - 128
+    maxy = max((v[1] for v in ourverts)) + 128
     poly = vec.Poly2D(((minx, miny),
                        (minx, maxy),
                        (maxx, maxy),
                        (maxx, miny)))
+#    print("start poly:")
+#    print(poly)
+#    print()
 
     return recurse2D(headnodeidx, lines, poly)
 
@@ -111,7 +128,8 @@ def main(argv):
     w = wad.Wad(argv[1])
     mapname = argv[2]
 
-    process2D(w, mapname)
+    bsp2d = process2D(w, mapname)
+    print(bsp2d)
     #...
 
 

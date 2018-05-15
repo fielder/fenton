@@ -665,7 +665,7 @@ ProcessEnterExitEdge (double enter[3], double exit[3], int planemask)
 
 
 static int
-GenScanEdgesForEdgeLoop (int edgeloop_start,
+GenScanEdgesForEdgeLoop (int *edgeloop,
 			int numedges,
 			int planemask,
 			struct scanedge_s *scanedges,
@@ -686,10 +686,9 @@ GenScanEdgesForEdgeLoop (int edgeloop_start,
 	enter_right = NULL;
 	exit_right = NULL;
 
-	int *eloop_ptr = &map.edgeloops[edgeloop_start];
 	while (numedges-- > 0)
 	{
-		int medgeidx = *eloop_ptr++;
+		int medgeidx = *edgeloop++;
 		struct medge_s *medge;
 
 		if (medgeidx < 0)
@@ -817,6 +816,7 @@ GenScanEdgesForEdgeLoop (int edgeloop_start,
 	return 1;
 }
 
+
 extern void
 R_Surf_Emit (struct msurface_s *msurf, int firstspanidx, int numspans);
 
@@ -840,7 +840,7 @@ R_Edge_ProcessSurfaces (unsigned int first,
 		if (backface_check && Map_DistFromSurface(msurf, camera.pos) < SURF_BACKFACE_EPSILON)
 			continue;
 
-		if (GenScanEdgesForEdgeLoop(msurf->edgeloop_start,
+		if (GenScanEdgesForEdgeLoop(&map.edgeloops[msurf->edgeloop_start],
 					msurf->numedges,
 					planemask,
 					scanpool,
