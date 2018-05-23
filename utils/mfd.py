@@ -10,26 +10,27 @@ import wad
 import vec
 import mknodes
 
+
 Leaf2D = collections.namedtuple("Leaf2D", "lines poly")
 Node2D = collections.namedtuple("Node2D", "line onlines front back")
 
+InNode = collections.namedtuple("InNode", "line frontidx backidx")
+innodes = None
+
 sidedefs = None
 sectors = None
-
-InNode = collections.namedtuple("InNode", "line frontidx backidx")
-
-innodes = None
 
 #TODO: round off output vertices to 0.001 or so
 
 #FIXME: figure out why we're getting None polys...
 def recurse2D(nodeidx, lines, poly):
     if nodeidx is None:
-#        print("leaf")
+        print("leaf")
 #        print(lines)
 #        print(poly)
         # leaf
         for l in lines:
+            print(type(l))
             poly, _ = poly.splitWithLine(l)
         ret = Leaf2D(lines, poly)
 #        print("leaf emit poly: {}".format(poly))
@@ -38,9 +39,18 @@ def recurse2D(nodeidx, lines, poly):
     else:
         # node
         node = innodes[nodeidx]
-#        print("node {}".format(nodeidx))
+        print("node {}".format(nodeidx))
 
         flines, blines, olines = node.line.splitLines(lines)
+        for l in flines:
+            print(type(l))
+        print()
+        for l in blines:
+            print(type(l))
+        print()
+        for l in olines:
+            print(type(l))
+        print()
 
         fpoly, bpoly = poly.splitWithLine(node.line)
 #        print("f poly {}".format(fpoly))
@@ -57,9 +67,9 @@ def recurse2D(nodeidx, lines, poly):
 
 
 def process2D(w, mapname):
+    global innodes
     global sidedefs
     global sectors
-    global innodes
 
     nodes = mknodes.makeNodes(w, mapname)
     if not nodes:
@@ -86,7 +96,7 @@ def process2D(w, mapname):
 #                print(n)
 #            print()
 
-    vertexes = list(wadmap.iterVertexes(wadmap.lumpForMap(w, mapname, "VERTEXES")))
+    wadverts = list(wadmap.iterVertexes(wadmap.lumpForMap(w, mapname, "VERTEXES")))
     linedefs = list(wadmap.iterLinedefs(wadmap.lumpForMap(w, mapname, "LINEDEFS")))
     sidedefs = list(wadmap.iterSidedefs(wadmap.lumpForMap(w, mapname, "SIDEDEFS")))
     sectors = list(wadmap.iterSectors(wadmap.lumpForMap(w, mapname, "SECTORS")))
@@ -94,7 +104,7 @@ def process2D(w, mapname):
     # Note we negate y-axis coordinates from the WAD to match our
     # coordinate system. Consequently, we must reverse the linedef
     # vertex ordering to keep normals correct.
-    ourverts = [(v.x, -v.y) for v in vertexes]
+    ourverts = [(v.x, -v.y) for v in wadverts]
     lines = [ vec.Line2D((ourverts[ld.v2][0], ourverts[ld.v2][1]), \
                          (ourverts[ld.v1][0], ourverts[ld.v1][1])) \
               for ld in linedefs ]
@@ -114,6 +124,15 @@ def process2D(w, mapname):
     return recurse2D(headnodeidx, lines, poly)
 
 
+# input should be nodes, leafs
+# leaf should have 2d poly + lines w/ linedef refs
+# node should have lines w/ linedef refs, front+back node refs
+# run through all nodes, leafs:
+#  line turned to 3d walls:
+#   need to check front+back sidedef, sector
+#   a single line could create 0, 1, or 2 3d polys
+# create all 3d windings; keep sector ref, texture (high/mid/low)
+# merge vertices & create edges, edge loops
 def process3D(head):
     print(head)
     pass

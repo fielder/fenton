@@ -150,15 +150,15 @@ def printNodes(nodes):
 
 
 def main(argv):
-    if len(argv) < 3:
+    if len(argv) != 3:
         print("Calculate the node lines for a map")
-        print("usage: {} <wad> <map> ...".format(argv[0]))
+        print("usage: {} <wad> <map>".format(argv[0]))
         sys.exit(0)
 
     w = wad.Wad(argv[1])
-    for mapname in argv[2:]:
-        nodes = makeNodes(w, mapname)
-        printNodes(nodes)
+    mapname = argv[2]
+    nodes = makeNodes(w, mapname)
+    printNodes(nodes)
 
 
 if __name__ == "__main__":
