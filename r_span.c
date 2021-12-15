@@ -120,7 +120,7 @@ FreeGSpan (struct gspan_s *gs)
 
 /* this assumes the pool isn't empty */
 static inline struct gspan_s *
-AllocGSpan ()
+AllocGSpan (void)
 {
 	struct gspan_s *ret = IDX2PTR(poolidx);
 	poolidx = ret->nextidx;
@@ -202,10 +202,10 @@ R_Span_ClipAndEmit (int y, int x1, int x2)
 			 * emit a drawable span */
 
 			PushSpan (y, gs->left, gs->right);
-			int next = gs->nextidx;
+			unsigned short nextidx = gs->nextidx;
 			UnlinkGSpan (gs);
 			FreeGSpan (gs);
-			gs = IDX2PTR(next);
+			gs = IDX2PTR(nextidx);
 		}
 		else
 		{
@@ -244,12 +244,14 @@ R_Span_BeginFrame (void *buf, int buflen, int w, int h)
 	 * the pool */
 	for (i = 1; i < display_h + 1; i++)
 	{
-		struct gspan_s *head = IDX2PTR(i);
-		struct gspan_s *next;
-		while ((next = IDX2PTR(head->nextidx)) != head)
+		if (gspans[i].nextidx != i)
 		{
-			UnlinkGSpan (next);
-			FreeGSpan (next);
+			/* gspans still remain on this row */
+			unsigned short firstidx = gspans[i].nextidx;
+			unsigned short lastidx = gspans[i].previdx;
+			gspans[lastidx].nextidx = poolidx;
+			poolidx = firstidx;
+			gspans[i].previdx = gspans[i].nextidx = i;
 		}
 	}
 
